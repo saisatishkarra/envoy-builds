@@ -1,5 +1,5 @@
 name: CI
-on: [workflow_dispatch]
+on: workflow_dispatch
 jobs:
   build:
     # virtual environments: https://github.com/actions/virtual-environments
@@ -23,6 +23,8 @@ jobs:
 
       - name: checkout envoy
         uses: actions/checkout@v3
+
+      - name: checkout envoy
         run: |
           mkdir -p build/envoy-sources
           cd build/envoy-sources
@@ -35,3 +37,7 @@ jobs:
         working-directory: build/envoy-sources
         run: |
           ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.dev'
+
+      - name: inspect
+        run: |
+          sudo apt-get install tree && tree .

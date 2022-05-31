@@ -10,8 +10,8 @@ jobs:
       ENVOY_DISTRO: linux
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      
-    - name: test
-      run: echo "testing dispatch"
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: test
+        run: echo "testing dispatch"

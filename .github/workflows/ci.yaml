@@ -26,6 +26,7 @@ jobs:
 
       - name: checkout envoy
         run: |
+          mkdir -p build/artifacts
           mkdir -p build/envoy-sources
           cd build/envoy-sources
           git clone -n https://github.com/envoyproxy/envoy.git .
@@ -36,7 +37,7 @@ jobs:
           IMAGE_NAME: envoyproxy/envoy-build-ubuntu
         working-directory: build/envoy-sources
         run: |
-          ENVOY_DOCKER_BUILD_DIR=~/build ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
+          ENVOY_DOCKER_BUILD_DIR=../artifacts ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
 
       - name: inspect
         run: |
@@ -45,8 +46,8 @@ jobs:
       - name: Zip artifact
         run: |
           mkdir -p artifacts
-          if [[ -d build/envoy/source/exe/envoy ]]; then  
-            tar -czvf artifacts/envoy.tar.gz build/envoy/source/exe/envoy
+          if [[ -d build/artifacts ]]; then  
+            tar -czvf envoy.tar.gz build/artifacts
           fi
       - name: Save artifact
         if: hashFiles('artifacts/') != ''

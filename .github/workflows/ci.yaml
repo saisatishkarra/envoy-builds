@@ -10,16 +10,16 @@ jobs:
       ENVOY_DISTRO: linux
 
     steps:
-      # Caches and restores the bazelisk download directory, the bazel build directory.
-      # - name: Cache bazel
-      #   uses: actions/cache@v3
-      #   env:
-      #     cache-name: bazel-cache
-      #   with:
-      #     path: |
-      #       ~/.cache/bazelisk
-      #       ~/.cache/bazel
-      #     key: ${{ runner.os }}-${{ env.cache-name }}
+      #Caches and restores the bazelisk download directory, the bazel build directory.
+      - name: Cache bazel
+        uses: actions/cache@v3
+        env:
+          cache-name: bazel-cache
+        with:
+          path: |
+            ~/.cache/bazelisk
+            ~/.cache/bazel
+          key: ${{ runner.os }}-${{ env.cache-name }}
 
       - name: checkout envoy
         uses: actions/checkout@v3
@@ -36,7 +36,7 @@ jobs:
           IMAGE_NAME: envoyproxy/envoy-build-ubuntu
         working-directory: build/envoy-sources
         run: |
-          ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.dev'
+          ENVOY_DOCKER_BUILD_DIR=~/build ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.dev'
 
       - name: inspect
         run: |

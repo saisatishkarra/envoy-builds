@@ -36,8 +36,22 @@ jobs:
           IMAGE_NAME: envoyproxy/envoy-build-ubuntu
         working-directory: build/envoy-sources
         run: |
-          ENVOY_DOCKER_BUILD_DIR=~/build ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.dev'
+          ENVOY_DOCKER_BUILD_DIR=~/build ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
 
       - name: inspect
         run: |
           sudo apt-get install tree && tree .
+
+      - name: Zip artifact
+        run: |
+          mkdir -p artifacts
+          if [[ -d build/envoy/source/exe/envoy ]]; then  
+            tar -czvf artifacts/envoy.tar.gz build/envoy/source/exe/envoy
+          fi
+      - name: Save artifact
+        if: hashFiles('artifacts/') != ''
+        uses: actions/upload-artifact@v3
+        id: save_artifacts
+        with:
+          name: artifacts
+          path: artifacts

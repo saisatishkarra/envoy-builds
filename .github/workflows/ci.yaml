@@ -37,7 +37,7 @@ jobs:
           IMAGE_NAME: envoyproxy/envoy-build-ubuntu
         working-directory: build/envoy-sources
         run: |
-          ENVOY_DOCKER_BUILD_DIR=../artifacts ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
+          ENVOY_DOCKER_BUILD_DIR=${GITHUB_WORKSPACE}/build/artifacts ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
 
       - name: inspect
         run: |

@@ -22,9 +22,6 @@ jobs:
           key: ${{ runner.os }}-${{ env.cache-name }}
 
       - name: checkout envoy
-        uses: actions/checkout@v3
-
-      - name: checkout envoy
         run: |
           mkdir -p build/artifacts
           mkdir -p build/envoy-sources
@@ -40,19 +37,12 @@ jobs:
           ENVOY_DOCKER_BUILD_DIR=${GITHUB_WORKSPACE}/build/artifacts ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
 
       - name: inspect
-        run: |
-          sudo apt-get install tree && tree .
+        run:  tree .
 
-      - name: Zip artifact
-        run: |
-          mkdir -p artifacts
-          if [[ -d build/artifacts ]]; then  
-            tar -czvf envoy.tar.gz build/artifacts
-          fi
       - name: Save artifact
         if: hashFiles('artifacts/') != ''
         uses: actions/upload-artifact@v3
         id: save_artifacts
         with:
           name: artifacts
-          path: artifacts
+          path: build/artifacts

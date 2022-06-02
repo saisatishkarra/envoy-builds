@@ -24,7 +24,7 @@ jobs:
       - name: checkout envoy
         run: |
           mkdir -p artifacts
-          git clone -n https://github.com/envoyproxy/envoy.git .
+          git clone -n https://github.com/envoyproxy/envoy.git
           git checkout release/v1.22
 
       - name: build envoy

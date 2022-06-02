@@ -19,7 +19,7 @@ jobs:
           path: |
             ~/.cache/bazelisk
             ~/.cache/bazel
-          key: ${{ runner.os }}-{{ env.version }}-bazel-cache
+          key: ${{ runner.os }}-${{ env.cache-name }}
 
       - name: checkout envoy
         run: |

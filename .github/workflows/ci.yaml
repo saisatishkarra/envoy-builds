@@ -40,9 +40,9 @@ jobs:
         run:  tree .
 
       - name: Save artifact
-        if: hashFiles('artifacts/') != ''
+        if: hashFiles('${GITHUB_WORKSPACE}/artifacts/') != ''
         uses: actions/upload-artifact@v3
         id: save_artifacts
         with:
           name: artifacts
-          path: artifacts
+          path: ${GITHUB_WORKSPACE}/artifacts

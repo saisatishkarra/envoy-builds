@@ -34,7 +34,7 @@ jobs:
           IMAGE_NAME: envoyproxy/envoy-build-ubuntu
         working-directory: build/envoy-sources
         run: |
-          echo "asdasdasd" > somefile.txt
+          touch ${GITHUB_WORKSPACE}/artifacts/somefile.txt
           pwd
           ls -l
         # run: |
@@ -47,9 +47,9 @@ jobs:
           tree .
 
       - name: Save artifact
-        if: hashFiles('${GITHUB_WORKSPACE}/artifacts/') != ''
+        if: hashFiles('artifacts/') != ''
         uses: actions/upload-artifact@v3
         id: save_artifacts
         with:
           name: artifacts
-          path: ${GITHUB_WORKSPACE}/artifacts
+          path: artifacts

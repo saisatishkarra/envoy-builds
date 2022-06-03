@@ -43,10 +43,11 @@ jobs:
       - name: inspect
         run:  |
           pwd
+          echo ${GITHUB_WORKSPACE}
           tree .
 
       - name: Save artifact
-        if: hashFiles('${GITHUB_WORKSPACE}/artifacts/') != ''
+        if: hashFiles('${GITHUB_WORKSPACE}/envoy-builds/artifacts/') != ''
         uses: actions/upload-artifact@v3
         id: save_artifacts
         with:

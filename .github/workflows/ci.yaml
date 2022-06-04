@@ -46,4 +46,6 @@ jobs:
         id: save_artifacts
         with:
           name: artifacts
-          path: artifacts/envoy/source/exe/envoy
+          path: |
+            artifacts/envoy/source/exe/envoy
+            !artifacts/envoy/source/exe/*.dwp

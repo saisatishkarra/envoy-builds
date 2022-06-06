@@ -48,4 +48,4 @@ jobs:
           name: artifacts
           path: |
             artifacts/envoy/source/exe/envoy
-            !artifacts/envoy/source/exe/*.dwp
+            !artifacts/**/*.dwp

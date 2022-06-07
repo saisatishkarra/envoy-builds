@@ -1,5 +1,12 @@
 name: test
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+    inputs:
+      envoyTag:
+        description: 'envoy tag to build'
+        type: string
+        required: true
+
 jobs:
   build:
     # virtual environments: https://github.com/actions/virtual-environments
@@ -14,4 +21,4 @@ jobs:
         uses: actions/checkout@v3
         
       - name: test
-        run: echo "testing dispatch"
+        run: echo ${{ github.event.inputs.envoyTag }}

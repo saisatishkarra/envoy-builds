@@ -1,51 +1,24 @@
 name: CI
 on: workflow_dispatch
 jobs:
-  build:
-    # virtual environments: https://github.com/actions/virtual-environments
+  build_envoy_alpine_amd64:
     runs-on: ubuntu-18.04
-    env:
-      OS: linux
-      ARCH: amd64
-      ENVOY_DISTRO: linux
-
     steps:
-      #Caches and restores the bazelisk download directory, the bazel build directory.
-      - name: Cache bazel
-        uses: actions/cache@v3
+      - name: Checkout step
+        id: checkout
+        uses: actions/checkout@v2
+
+      - name: make build alpine
+        run: make build/envoy
         env:
-          cache-name: bazel-cache
-        with:
-          path: |
-            ~/.cache/bazelisk
-            ~/.cache/bazel
-          key: ${{ runner.os }}-${{ env.cache-name }}
-
-      - name: checkout envoy
-        run: |
-          mkdir -p artifacts
-          mkdir -p build/envoy-sources
-          cd build/envoy-sources
-          git clone -n https://github.com/envoyproxy/envoy.git .
-          git checkout release/v1.22
-
-      - name: build envoy
-        env:
-          IMAGE_NAME: envoyproxy/envoy-build-ubuntu
-        working-directory: build/envoy-sources
-        run: |
-          ENVOY_DOCKER_BUILD_DIR=${GITHUB_WORKSPACE}/artifacts ./ci/run_envoy_docker.sh './ci/do_ci.sh bazel.release.server_only'
-
-      - name: inspect
-        run:  |
-          echo ${GITHUB_WORKSPACE}
-          tree ${GITHUB_WORKSPACE}/artifacts
-
+          GOOS: linux
+          GOARCH: amd64
+          ENVOY_DISTRO: alpine
+      
       - name: Save artifact
         uses: actions/upload-artifact@v3
         id: save_artifacts
         with:
           name: artifacts
           path: |
-            artifacts/envoy/source/exe/envoy
-            !artifacts/**/*.dwp
+            build/**/envoy

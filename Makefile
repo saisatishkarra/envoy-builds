@@ -1,7 +1,7 @@
-GOOS := $(shell go env GOOS)
-GOARCH := $(shell go env GOARCH)
-
 WORK_DIR ?= .
+
+GOOS = linux
+GOARCH = amd64
 
 BUILD_ENVOY_FROM_SOURCES ?= false
 

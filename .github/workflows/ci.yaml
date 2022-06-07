@@ -20,6 +20,7 @@ jobs:
           GOOS: linux
           GOARCH: amd64
           ENVOY_DISTRO: alpine
+          BUILD_ENVOY_FROM_SOURCES: true
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
       - name: Zip artifact
@@ -51,6 +52,7 @@ jobs:
           GOOS: linux
           GOARCH: amd64
           ENVOY_DISTRO: centos
+          BUILD_ENVOY_FROM_SOURCES: true
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
       
       - name: Zip artifact

@@ -10,9 +10,13 @@ jobs:
   build_envoy_alpine_amd64:
     runs-on: ubuntu-18.04
     steps:
-      - name: Checkout step
-        id: checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+      - uses: bazelbuild/setup-bazelisk@v2
+      - name: Mount bazel cache
+        uses: actions/cache@v3
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
 
       - name: make build alpine
         run: make build/envoy
@@ -39,34 +43,34 @@ jobs:
           path: |
             build/**/envoy/*.tar.gz
 
-  build_envoy_centos_amd64:
-    runs-on: ubuntu-18.04
-    steps:
-      - name: Checkout step
-        id: checkout
-        uses: actions/checkout@v2
+  # build_envoy_centos_amd64:
+  #   runs-on: ubuntu-18.04
+  #   steps:
+  #     - name: Checkout step
+  #       id: checkout
+  #       uses: actions/checkout@v2
 
-      - name: make build centos
-        run: make build/envoy
-        env:
-          GOOS: linux
-          GOARCH: amd64
-          ENVOY_DISTRO: centos
-          BUILD_ENVOY_FROM_SOURCES: true
-          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+  #     - name: make build centos
+  #       run: make build/envoy
+  #       env:
+  #         GOOS: linux
+  #         GOARCH: amd64
+  #         ENVOY_DISTRO: centos
+  #         BUILD_ENVOY_FROM_SOURCES: true
+  #         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
       
-      - name: Zip artifact
-        run: |
-          if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos ]]; then  
-              tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos
-          fi
-        env:
-          envoyTag: ${{ github.event.inputs.envoyTag }}
+  #     - name: Zip artifact
+  #       run: |
+  #         if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos ]]; then  
+  #             tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos
+  #         fi
+  #       env:
+  #         envoyTag: ${{ github.event.inputs.envoyTag }}
       
-      - name: Save artifact
-        uses: actions/upload-artifact@v3
-        id: save_artifacts
-        with:
-          name: artifacts
-          path: |
-            build/**/envoy/*.tar.gz
+  #     - name: Save artifact
+  #       uses: actions/upload-artifact@v3
+  #       id: save_artifacts
+  #       with:
+  #         name: artifacts
+  #         path: |
+  #           build/**/envoy/*.tar.gz

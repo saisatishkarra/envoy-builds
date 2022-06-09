@@ -31,6 +31,10 @@ LOCAL_BUILD_IMAGE="envoy-builder:${ENVOY_TAG}"
 
 echo "BUILD_CMD=${BUILD_CMD}"
 
+ls -l
+
+echo "SOURCE_DIR=${SOURCE_DIR}"
+
 docker build -t "${LOCAL_BUILD_IMAGE}" --progress=plain \
   --build-arg ENVOY_BUILD_IMAGE="${ENVOY_BUILD_IMAGE}" \
   --build-arg BUILD_CMD="${BUILD_CMD}" \

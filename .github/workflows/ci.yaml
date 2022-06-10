@@ -47,7 +47,7 @@ jobs:
         working-directory: envoy-sources
         run: |
           CONTRIB_ENABLED_ARGS=$(python ../tools/envoy/contrib_enabled_matrix.py)
-          echo echo "::set-output name=contrib_enabled_args::${CONTRIB_ENABLED_ARGS}
+          echo echo "::set-output name=contrib_enabled_args::${CONTRIB_ENABLED_ARGS}"
 
       - name: create bazel build cmd
         id: build-cmd 
@@ -55,7 +55,7 @@ jobs:
           BAZEL_BUILD_OPTIONS=("--config=clang" "--verbose_failures")
           BUILD_TARGET="//contrib/exe:envoy-static"
           BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c opt ${BUILD_TARGET} ${CONTRIB_ENABLED_ARGS}"}
-          echo echo "::set-output name=build_cmd::${BUILD_CMD}
+          echo echo "::set-output name=build_cmd::${BUILD_CMD}"
 
       - name: docker build
         run: echo ${{steps.build-cmd.outputs.build_cmd}}

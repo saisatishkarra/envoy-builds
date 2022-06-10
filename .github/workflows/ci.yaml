@@ -84,7 +84,9 @@ jobs:
           tags: ${{steps.envoy-version.outputs.local_build_image}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: ENVOY_BUILD_IMAGE=${{steps.envoy-version.outputs.envoy_build_image}}, BUILD_CMD=${{steps.build-cmd.outputs.build_cmd}}
+          build-args: |
+            ENVOY_BUILD_IMAGE=${{steps.envoy-version.outputs.envoy_build_image}}
+            BUILD_CMD=${{steps.build-cmd.outputs.build_cmd}}
 
       - name: copy binary
         run: |

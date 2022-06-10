@@ -43,6 +43,7 @@ jobs:
           git fetch origin --depth=1 ${ENVOY_TAG}
           git reset --hard FETCH_HEAD
           rm -f .dockerignore
+          ls -l
         env:
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 

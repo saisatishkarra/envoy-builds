@@ -82,24 +82,27 @@ jobs:
           tags: ${{steps.envoy-version.outputs.local_build_image}}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
+        env:
+          ENVOY_BUILD_IMAGE: ${{steps.envoy-version.outputs.envoy_build_image}}
+          BUILD_CMD: ${{steps.build-cmd.outputs.build_cmd}}
 
-      - name: Cache Bazel
-        uses: actions/cache@v2
-        with:
-          path: /home/runner/work/envoy-builds/envoy-builds/.cache/bazel
-          key: ${{ runner.os }}-bazel-cache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-bazel-cache-
+      # - name: Cache Bazel
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: /home/runner/work/envoy-builds/envoy-builds/.cache/bazel
+      #     key: ${{ runner.os }}-bazel-cache-${{ github.sha }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-bazel-cache-
 
-      - name: Build step
-        id: build
-        run: |
-          docker build -t ${{steps.envoy-version.outputs.local_build_image}} --progress=plain \
-          --build-arg ENVOY_BUILD_IMAGE=${{steps.envoy-version.outputs.envoy_build_image}} \
-          --build-arg BUILD_CMD=${{steps.build-cmd.outputs.build_cmd}} \
-          -f ./tools/envoy/Dockerfile.build-ubuntu" .
-          env:
-            DOCKER_BUILDKIT: 1
+      # - name: Build step
+      #   id: build
+      #   run: |
+      #     docker build -t ${{steps.envoy-version.outputs.local_build_image}} --progress=plain \
+      #     --build-arg ENVOY_BUILD_IMAGE=${{steps.envoy-version.outputs.envoy_build_image}} \
+      #     --build-arg BUILD_CMD=${{steps.build-cmd.outputs.build_cmd}} \
+      #     -f ./tools/envoy/Dockerfile.build-ubuntu" .
+      #     env:
+      #       DOCKER_BUILDKIT: 1
 
       - name: Move cache
         run: |

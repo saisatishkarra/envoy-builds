@@ -38,9 +38,11 @@ jobs:
           git init .
           git remote add origin https://github.com/envoyproxy/envoy.git
 
-          git fetch origin --depth=1 ${{steps.envoy-version.outputs.envoy_version}}
+          git fetch origin --depth=1 ${ENVOY_TAG}
           git reset --hard FETCH_HEAD
           rm -f .dockerignore
+        env:
+          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
       - name: contrib enabled args
         id: contrib

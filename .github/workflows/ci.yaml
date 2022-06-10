@@ -16,9 +16,7 @@ jobs:
       - name: get envoy version
         id: envoy-version
         run: |
-          pwd
-          ls -l 
-          ENVOY_VERSION = ./tools/envoy/version.sh ${ENVOY_TAG}
+          ENVOY_VERSION = $(./tools/envoy/version.sh ${ENVOY_TAG})
           echo echo "::set-output name=envoy_version::${ENVOY_VERSION}"
 
           ENVOY_BUILD_SHA=$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/"${ENVOY_TAG}"/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#'| uniq)

@@ -12,10 +12,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-        
+
       - name: get envoy version
         id: envoy-version
-        run: | 
+        run: |
+          pwd
+          ls -l 
           ENVOY_VERSION = ./tools/envoy/version.sh ${ENVOY_TAG}
           echo echo "::set-output name=envoy_version::${ENVOY_VERSION}"
 

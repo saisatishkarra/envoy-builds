@@ -86,6 +86,31 @@ jobs:
           ENVOY_BUILD_IMAGE: ${{steps.envoy-version.outputs.envoy_build_image}}
           BUILD_CMD: ${{steps.build-cmd.outputs.build_cmd}}
 
+      - name: copy binary
+        run: |
+          mkdir -p ./build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
+          id=$(docker create ${{steps.envoy-version.outputs.local_build_image}})
+          docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy ./build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
+          docker rm -v "$id"
+        env:
+          envoyTag: ${{ github.event.inputs.envoyTag }}
+
+      - name: Zip artifact
+        run: |
+          if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine ]]; then  
+              tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
+          fi
+        env:
+          envoyTag: ${{ github.event.inputs.envoyTag }}
+      
+      - name: Save artifact
+        uses: actions/upload-artifact@v3
+        id: save_artifacts
+        with:
+          name: artifacts
+          path: |
+            build/**/envoy/*.tar.gz
+
       # - name: Cache Bazel
       #   uses: actions/cache@v2
       #   with:

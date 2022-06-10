@@ -10,38 +10,53 @@ jobs:
   build_envoy_alpine_amd64:
     runs-on: ubuntu-18.04
     steps:
-      - uses: actions/checkout@v3
-      - uses: bazelbuild/setup-bazelisk@v2
-      - name: Mount bazel cache
-        uses: actions/cache@v3
-        with:
-          path: "~/.cache/bazel"
-          key: bazel
+      - name: get envoy version
+        id: envoy-version
+        run: | 
+          ENVOY_VERSION = ./tools/envoy/version.sh ${ENVOY_TAG}
+          echo echo "::set-output name=envoy_version::${ENVOY_VERSION}"
 
-      - name: make build alpine
-        run: make build/envoy
+          ENVOY_BUILD_SHA=$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/"${ENVOY_TAG}"/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#'| uniq)
+          echo echo "::set-output name=envoy_build_sha::${ENVOY_BUILD_SHA}"
+
+          ENVOY_BUILD_IMAGE="envoyproxy/envoy-build-ubuntu:${ENVOY_BUILD_SHA}"
+          echo echo "::set-output name=envoy_build_image::${ENVOY_BUILD_IMAGE}"
+
+          LOCAL_BUILD_IMAGE="envoy-builder:${ENVOY_TAG}"
+          echo echo "::set-output name=local_build_image::${LOCAL_BUILD_IMAGE}"
         env:
-          GOOS: linux
-          GOARCH: amd64
-          ENVOY_DISTRO: alpine
-          BUILD_ENVOY_FROM_SOURCES: true
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
-      - name: Zip artifact
+      - name: download envoy sources
+        id: envoy-sources
         run: |
-          if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine ]]; then  
-              tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
-          fi
-        env:
-          envoyTag: ${{ github.event.inputs.envoyTag }}
-      
-      - name: Save artifact
-        uses: actions/upload-artifact@v3
-        id: save_artifacts
-        with:
-          name: artifacts
-          path: |
-            build/**/envoy/*.tar.gz
+          mkdir -p envoy-sources
+          cd "envoy-sources
+          git init .
+          git remote add origin https://github.com/envoyproxy/envoy.git
+
+          git fetch origin --depth=1 ${{steps.envoy-version.outputs.envoy_version}}
+          git reset --hard FETCH_HEAD
+          rm -f .dockerignore
+
+      - name: contrib enabled args
+        id: contrib
+        working-directory: envoy-sources
+        run: |
+          CONTRIB_ENABLED_ARGS=$(python ../tools/envoy/contrib_enabled_matrix.py)
+          echo echo "::set-output name=contrib_enabled_args::${CONTRIB_ENABLED_ARGS}
+
+      - name: create bazel build cmd
+        id: build-cmd 
+        run: |
+          BAZEL_BUILD_OPTIONS=("--config=clang" "--verbose_failures")
+          BUILD_TARGET="//contrib/exe:envoy-static"
+          BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c opt ${BUILD_TARGET} ${CONTRIB_ENABLED_ARGS}"}
+          echo echo "::set-output name=build_cmd::${BUILD_CMD}
+
+      - name: docker build
+        run: echo ${{steps.build-cmd.outputs.build_cmd}}
+
 
   # build_envoy_centos_amd64:
   #   runs-on: ubuntu-18.04

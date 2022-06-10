@@ -22,8 +22,10 @@ jobs:
           ENVOY_BUILD_SHA=$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/"${ENVOY_TAG}"/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#'| uniq)
           echo "::set-output name=envoy_build_sha::${ENVOY_BUILD_SHA}"
 
-          ENVOY_BUILD_IMAGE="envoyproxy/envoy-build-ubuntu:${ENVOY_BUILD_SHA}"
+          ENVOY_BUILD_IMAGE=envoyproxy/envoy-build-ubuntu:${ENVOY_BUILD_SHA}
           echo "::set-output name=envoy_build_image::${ENVOY_BUILD_IMAGE}"
+
+          echo ENVOY_BUILD_IMAGE=${ENVOY_BUILD_IMAGE}
 
           LOCAL_BUILD_IMAGE="envoy-builder:${ENVOY_TAG}"
           echo "::set-output name=local_build_image::${LOCAL_BUILD_IMAGE}"

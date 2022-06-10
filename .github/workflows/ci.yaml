@@ -34,7 +34,7 @@ jobs:
         id: envoy-sources
         run: |
           mkdir -p envoy-sources
-          cd "envoy-sources
+          cd envoy-sources
           git init .
           git remote add origin https://github.com/envoyproxy/envoy.git
 

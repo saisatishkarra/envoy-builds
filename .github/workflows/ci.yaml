@@ -10,93 +10,23 @@ jobs:
   build_envoy_alpine_amd64:
     runs-on: ubuntu-18.04
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: get envoy version
-        id: envoy-version
+      - name: Checkout step
+        id: checkout
+        uses: actions/checkout@v2
+      
+      - name: make space
         run: |
-          ENVOY_VERSION=$(./tools/envoy/version.sh ${ENVOY_TAG})
-          echo "::set-output name=envoy_version::${ENVOY_VERSION}"
-
-          ENVOY_BUILD_SHA=$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/"${ENVOY_TAG}"/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#'| uniq)
-          echo "::set-output name=envoy_build_sha::${ENVOY_BUILD_SHA}"
-
-          ENVOY_BUILD_IMAGE=envoyproxy/envoy-build-ubuntu:${ENVOY_BUILD_SHA}
-          echo "::set-output name=envoy_build_image::${ENVOY_BUILD_IMAGE}"
-
-          echo ENVOY_BUILD_IMAGE=${ENVOY_BUILD_IMAGE}
-
-          LOCAL_BUILD_IMAGE="envoy-builder:${ENVOY_TAG}"
-          echo "::set-output name=local_build_image::${LOCAL_BUILD_IMAGE}"
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+      - name: make build alpine
+        run: make build/envoy
         env:
+          GOOS: linux
+          GOARCH: amd64
+          ENVOY_DISTRO: alpine
+          BUILD_ENVOY_FROM_SOURCES: true
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
-
-      - name: download envoy sources
-        id: envoy-sources
-        run: |
-          mkdir -p envoy-sources
-          cd envoy-sources
-          git init .
-          git remote add origin https://github.com/envoyproxy/envoy.git
-
-          git fetch origin --depth=1 ${ENVOY_TAG}
-          git reset --hard FETCH_HEAD
-          rm -f .dockerignore
-          ls -l
-        env:
-          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
-
-      - name: contrib enabled args
-        id: contrib
-        working-directory: envoy-sources
-        run: |
-          CONTRIB_ENABLED_ARGS=$(python ../tools/envoy/contrib_enabled_matrix.py)
-          echo "::set-output name=contrib_enabled_args::${CONTRIB_ENABLED_ARGS}"
-
-      - name: create bazel build cmd
-        id: build-cmd 
-        run: |
-          BAZEL_BUILD_OPTIONS=("--config=clang" "--verbose_failures")
-          BUILD_TARGET="//contrib/exe:envoy-static"
-          BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c opt ${BUILD_TARGET} ${{steps.contrib.outputs.contrib_enabled_args}}"}
-          echo "::set-output name=build_cmd::${BUILD_CMD}"
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: docker buildx
-        uses: docker/build-push-action@v2.7.0
-        with:
-          context: .
-          file: ./tools/envoy/Dockerfile.build-ubuntu
-          builder: ${{ steps.buildx.outputs.name }}
-          push: false
-          load: true
-          tags: ${{steps.envoy-version.outputs.local_build_image}}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new
-          build-args: |
-            ENVOY_BUILD_IMAGE=${{steps.envoy-version.outputs.envoy_build_image}}
-            BUILD_CMD=${{steps.build-cmd.outputs.build_cmd}}
-
-      - name: copy binary
-        run: |
-          mkdir -p ./build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
-          id=$(docker create ${{steps.envoy-version.outputs.local_build_image}})
-          docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy ./build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
-          docker rm -v "$id"
-        env:
-          envoyTag: ${{ github.event.inputs.envoyTag }}
 
       - name: Zip artifact
         run: |
@@ -113,31 +43,6 @@ jobs:
           name: artifacts
           path: |
             build/**/envoy/*.tar.gz
-
-      # - name: Cache Bazel
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: /home/runner/work/envoy-builds/envoy-builds/.cache/bazel
-      #     key: ${{ runner.os }}-bazel-cache-${{ github.sha }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-bazel-cache-
-
-      # - name: Build step
-      #   id: build
-      #   run: |
-      #     docker build -t ${{steps.envoy-version.outputs.local_build_image}} --progress=plain \
-      #     --build-arg ENVOY_BUILD_IMAGE=${{steps.envoy-version.outputs.envoy_build_image}} \
-      #     --build-arg BUILD_CMD=${{steps.build-cmd.outputs.build_cmd}} \
-      #     -f ./tools/envoy/Dockerfile.build-ubuntu" .
-      #     env:
-      #       DOCKER_BUILDKIT: 1
-
-      - name: Move cache
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-
-
 
   # build_envoy_centos_amd64:
   #   runs-on: ubuntu-18.04

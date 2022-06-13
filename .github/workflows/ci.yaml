@@ -52,6 +52,8 @@ jobs:
         id: checkout
         uses: actions/checkout@v2
 
+      # Hacky solution to resolve running out of disk space
+      # https://github.com/actions/virtual-environments/issues/2840#issuecomment-790492173
       - name: make space
         run: |
           sudo rm -rf /usr/share/dotnet
@@ -71,6 +73,38 @@ jobs:
         run: |
           if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos ]]; then  
               tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-centos
+          fi
+        env:
+          envoyTag: ${{ github.event.inputs.envoyTag }}
+      
+      - name: Save artifact
+        uses: actions/upload-artifact@v3
+        id: save_artifacts
+        with:
+          name: artifacts
+          path: |
+            build/**/envoy/*.tar.gz
+
+  build_envoy_darwin_amd64:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout step
+        id: checkout
+        uses: actions/checkout@v2
+
+      - name: make build alpine
+        run: make build/envoy
+        env:
+          GOOS: darwin
+          GOARCH: amd64
+          ENVOY_DISTRO: darwin
+          BUILD_ENVOY_FROM_SOURCES: true
+          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+
+      - name: Zip artifact
+        run: |
+          if [[ -f build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin ]]; then  
+              tar -czvf build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin.tar.gz build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin
           fi
         env:
           envoyTag: ${{ github.event.inputs.envoyTag }}

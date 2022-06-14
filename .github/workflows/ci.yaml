@@ -94,7 +94,7 @@ jobs:
 
       - name: install common deps
         run: | 
-          brew install coreutils wget cmake libtool go bazel automake ninja clang-format autoconf aspell python@3.10
+          brew install coreutils automake ninja clang-format
           
       - name: install full xcode
         run: |

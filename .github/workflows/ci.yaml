@@ -93,7 +93,9 @@ jobs:
         uses: actions/checkout@v2
 
       - name: install
-        run: brew install coreutils
+        run: | 
+          brew install coreutils
+          brew install docker-machine docker
 
       - name: make build alpine
         run: make build/envoy

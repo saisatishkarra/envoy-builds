@@ -1,7 +1,7 @@
 WORK_DIR ?= .
 
-GOOS = linux
-GOARCH = amd64
+GOOS ?= linux
+GOARCH ?= amd64
 
 BUILD_ENVOY_FROM_SOURCES ?= false
 

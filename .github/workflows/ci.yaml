@@ -176,7 +176,7 @@ jobs:
             --local_ram_resources=HOST_RAM*.9
             --local_cpu_resources=HOST_CPUS-1
         run: |
-          ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh //contrib/exe:envoy-static --//contrib/sxg/filters/http/source:enabled=false'
+          ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh //source/exe:envoy-static --//contrib/sxg/filters/http/source:enabled=false'
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v2

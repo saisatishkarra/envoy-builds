@@ -1,6 +1,3 @@
-
-
-
 diff --git a/ci/windows_ci_steps.sh b/ci/windows_ci_steps.sh
 index eed32c121..3fb6402be 100755
 --- a/ci/windows_ci_steps.sh

@@ -166,6 +166,7 @@ jobs:
       #   working-directory: envoy-sources
 
       - name: Build Envoy
+        working-directory: envoy-sources
         env:
           ENVOY_DOCKER_BUILD_DIR: "C:/build"
           # We have to leave some resources free, as if bazel will use all of them

@@ -85,52 +85,102 @@ jobs:
   #         path: |
   #           build/**/envoy/*.tar.gz
 
-  build_envoy_darwin_amd64:
-    runs-on: macos-latest
+  # build_envoy_darwin_amd64:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout step
+  #       id: checkout
+  #       uses: actions/checkout@v2
+
+  #     # https://github.com/envoyproxy/envoy/blob/main/bazel/README.md#quick-start-bazel-build-for-developers
+  #     - name: install common deps
+  #       run: | 
+  #         brew install coreutils automake ninja clang-format
+          
+  #     - name: install full xcode
+  #       run: |
+  #         sudo rm -rf /Library/Developer/CommandLineTools
+  #         softwareupdate --all --install --force
+  #         sudo xcode-select --install
+
+  #     # https://github.com/actions/runner/issues/1456#issue-1042407558
+  #     - name: install and launch docker
+  #       run: |
+  #         HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
+  #         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+  #         open -a /Applications/Docker.app --args --unattended --accept-license
+  #         echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
+  #         while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+
+  #     - name: make build darwin
+  #       run: make build/envoy
+  #       env:
+  #         GOOS: darwin
+  #         GOARCH: amd64
+  #         ENVOY_DISTRO: darwin
+  #         BUILD_ENVOY_FROM_SOURCES: true
+  #         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+
+  #     - name: Zip artifact
+  #       run: |
+  #         if [[ -f build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin ]]; then  
+  #             tar -czvf build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin.tar.gz build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin
+  #         fi
+  #       env:
+  #         envoyTag: ${{ github.event.inputs.envoyTag }}
+      
+  #     - name: Save artifact
+  #       uses: actions/upload-artifact@v3
+  #       id: save_artifacts
+  #       with:
+  #         name: artifacts
+  #         path: |
+  #           build/**/envoy/*.tar.gz
+
+  build_envoy_windows_amd64:
+    runs-on: windows-2019
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout step
         id: checkout
         uses: actions/checkout@v2
-
-      - name: install common deps
-        run: | 
-          brew install coreutils automake ninja clang-format
-          
-      - name: install full xcode
+      
+      - name: download envoy sources
+        id: envoy-sources
         run: |
-          sudo rm -rf /Library/Developer/CommandLineTools
-          softwareupdate --all --install --force
-          sudo xcode-select --install
+          mkdir -p envoy-sources
+          cd envoy-sources
+          git init .
+          git remote add origin https://github.com/envoyproxy/envoy.git
 
-      - name: install and launch docker
-        run: |
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
-          sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
-          open -a /Applications/Docker.app --args --unattended --accept-license
-          echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
-          while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
-
-      - name: make build darwin
-        run: make build/envoy
+          git fetch origin --depth=1 ${ENVOY_TAG}
+          git reset --hard FETCH_HEAD
         env:
-          GOOS: darwin
-          GOARCH: amd64
-          ENVOY_DISTRO: darwin
-          BUILD_ENVOY_FROM_SOURCES: true
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
-      - name: Zip artifact
+      - name: Patch ./ci/windows_ci_steps.sh
         run: |
-          if [[ -f build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin ]]; then  
-              tar -czvf build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin.tar.gz build/artifacts-darwin-amd64/envoy/envoy-${envoyTag#v}-darwin
-          fi
+          patch ./ci/windows_ci_steps.sh ../tools/envoy/windows_ci_steps_sh.patch
+        working-directory: envoy-sources
+
+      - name: Build Envoy
         env:
-          envoyTag: ${{ github.event.inputs.envoyTag }}
-      
-      - name: Save artifact
-        uses: actions/upload-artifact@v3
-        id: save_artifacts
+          ENVOY_DOCKER_BUILD_DIR: "C:/build"
+          # We have to leave some resources free, as if bazel will use all of them
+          # the GitHub Actions Runner service will stop responding and any action
+          # run on this machine will be cancelled
+          BAZEL_BUILD_OPTIONS: >-
+            --local_ram_resources=HOST_RAM*.9
+            --local_cpu_resources=HOST_CPUS-1
+        run: |
+          ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh //contrib/exe:envoy-static --//contrib/sxg/filters/http/source:enabled=false'
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
         with:
-          name: artifacts
+          name: envoy_${{ github.sha }}
           path: |
-            build/**/envoy/*.tar.gz
+            C:/build/envoy/source/exe/envoy.exe
+      

@@ -1,0 +1,36 @@
+
+
+
+diff --git a/ci/windows_ci_steps.sh b/ci/windows_ci_steps.sh
+index eed32c121..3fb6402be 100755
+--- a/ci/windows_ci_steps.sh
++++ b/ci/windows_ci_steps.sh
+@@ -75,10 +75,15 @@ fi
+ # are determined to fight a broken test, whether it is tagged
+ # skip/fail on windows or not.)
+ 
++TARGET_CMD="//source/exe:envoy-static"
++
+ if [[ $1 == "//source/exe:envoy-static" ]]; then
+   BUILD_ENVOY_STATIC=1
+   shift
+   TEST_TARGETS=$*
++elif [[ $1 == "//contrib/exe:envoy-static" ]]; then
++  BUILD_ENVOY_STATIC=1
++  TARGET_CMD=$*
+ elif [[ $# -gt 0 ]]; then
+   BUILD_ENVOY_STATIC=0
+   TEST_TARGETS=$*
+@@ -89,10 +94,10 @@ fi
+ 
+ # Complete envoy-static build
+ if [[ $BUILD_ENVOY_STATIC -eq 1 ]]; then
+-  bazel "${BAZEL_STARTUP_OPTIONS[@]}" build "${BAZEL_BUILD_OPTIONS[@]}" //source/exe:envoy-static
++  bazel "${BAZEL_STARTUP_OPTIONS[@]}" build "${BAZEL_BUILD_OPTIONS[@]}" ${TARGET_CMD[@]}
+ 
+   # Copy binary to delivery directory
+-  cp -f bazel-bin/source/exe/envoy-static.exe "${ENVOY_DELIVERY_DIR}/envoy.exe"
++  cp -f bazel-bin/contrib/exe/envoy-static.exe "${ENVOY_DELIVERY_DIR}/envoy.exe"
+ 
+   # Copy for azp, creating a tar archive
+   tar czf "${ENVOY_BUILD_DIR}"/envoy_binary.tar.gz -C "${ENVOY_DELIVERY_DIR}" envoy.exe

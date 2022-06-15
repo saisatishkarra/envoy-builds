@@ -160,10 +160,10 @@ jobs:
         env:
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
-      - name: Patch ./ci/windows_ci_steps.sh
-        run: |
-          patch ./ci/windows_ci_steps.sh ../tools/envoy/windows_ci_steps_sh.patch
-        working-directory: envoy-sources
+      # - name: Patch ./ci/windows_ci_steps.sh
+      #   run: |
+      #     patch ./ci/windows_ci_steps.sh ../tools/envoy/windows_ci_steps_sh.patch
+      #   working-directory: envoy-sources
 
       - name: Build Envoy
         env:

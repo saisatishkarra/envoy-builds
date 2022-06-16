@@ -176,6 +176,7 @@ jobs:
             --local_ram_resources=HOST_RAM*.9
             --local_cpu_resources=HOST_CPUS-1
         run: |
+          echo "::add-path::$GITHUB_WORKSPACE"
           ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
 
       - name: Archive production artifacts

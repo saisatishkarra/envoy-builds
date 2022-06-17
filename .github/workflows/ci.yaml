@@ -170,8 +170,8 @@ jobs:
           # the GitHub Actions Runner service will stop responding and any action
           # run on this machine will be cancelled
           BAZEL_BUILD_OPTIONS: >-
-            --local_ram_resources=HOST_RAM*.9
-            --local_cpu_resources=HOST_CPUS-1
+            --local_ram_resources=HOST_RAM*1
+            --local_cpu_resources=HOST_CPUS-2
         run: |
           ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
 

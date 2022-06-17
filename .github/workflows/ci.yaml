@@ -186,5 +186,20 @@ jobs:
         run: |
           pwd
           ls -l
+          df -k .
+          rm -rf Amazon
+          rm -rf Azure Cosmos DB Emulator
+          rm -rf Eclispse Foundation
+          rm -rf Microsoft SQL Server
+          rm -rf Microsoft Service Fabric
+          rm -rf MongoDB
+          rm -rf Mozilla Firefox
+          rm -rf PostgreSQL
+          rm -rf R
+          rm -rf Unity Hub
+          RM -rf Windows Mail
+          rm -rf Windows Media Player
+          ls -l
+          df -k .
         working-directory: C:\Program Files
       

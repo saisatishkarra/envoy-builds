@@ -143,42 +143,48 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Checkout step
-        id: checkout
-        uses: actions/checkout@v2
+      # - name: Checkout step
+      #   id: checkout
+      #   uses: actions/checkout@v2
       
-      - name: download envoy sources
-        id: envoy-sources
+      # - name: download envoy sources
+      #   id: envoy-sources
+      #   run: |
+      #     mkdir -p envoy-sources
+      #     cd envoy-sources
+      #     git init .
+      #     git remote add origin https://github.com/envoyproxy/envoy.git
+
+      #     git fetch origin --depth=1 ${ENVOY_TAG}
+      #     git reset --hard FETCH_HEAD
+      #   env:
+      #     ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+
+      # - name: Build Envoy
+      #   working-directory: envoy-sources
+      #   env:
+      #     PreferredToolArchitecture: x64
+      #     BAZEL_VC: "C:\\VSBT2019\\VC"
+      #     ENVOY_DOCKER_BUILD_DIR: "C:/build"
+      #     # We have to leave some resources free, as if bazel will use all of them
+      #     # the GitHub Actions Runner service will stop responding and any action
+      #     # run on this machine will be cancelled
+      #     BAZEL_BUILD_OPTIONS: >-
+      #       --local_ram_resources=HOST_RAM*1
+      #       --local_cpu_resources=HOST_CPUS-2
+      #       --experimental_local_memory_estimate=True
+      #   run: |
+      #     ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
+
+      # - name: Archive production artifacts
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: envoy_${{ github.sha }}
+      #     path: |
+      #       C:/build/envoy/source/exe/envoy.exe
+      - name: list dirs
         run: |
-          mkdir -p envoy-sources
-          cd envoy-sources
-          git init .
-          git remote add origin https://github.com/envoyproxy/envoy.git
-
-          git fetch origin --depth=1 ${ENVOY_TAG}
-          git reset --hard FETCH_HEAD
-        env:
-          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
-
-      - name: Build Envoy
-        working-directory: envoy-sources
-        env:
-          PreferredToolArchitecture: x64
-          BAZEL_VC: "C:\\VSBT2019\\VC"
-          ENVOY_DOCKER_BUILD_DIR: "C:/build"
-          # We have to leave some resources free, as if bazel will use all of them
-          # the GitHub Actions Runner service will stop responding and any action
-          # run on this machine will be cancelled
-          BAZEL_BUILD_OPTIONS: >-
-            --local_ram_resources=HOST_RAM*1
-            --local_cpu_resources=HOST_CPUS-2
-        run: |
-          ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
-
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: envoy_${{ github.sha }}
-          path: |
-            C:/build/envoy/source/exe/envoy.exe
+          ls -l
+          ls -l C:
+          ls -l C:\Program Files
       

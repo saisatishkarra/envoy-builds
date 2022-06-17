@@ -184,7 +184,6 @@ jobs:
       #       C:/build/envoy/source/exe/envoy.exe
       - name: list dirs
         run: |
+          pwd
           ls -l
-          ls -l C:
-          ls -l C:\Program Files
       

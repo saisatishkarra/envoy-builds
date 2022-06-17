@@ -186,4 +186,5 @@ jobs:
         run: |
           pwd
           ls -l
+        working-directory: C:\Program Files
       

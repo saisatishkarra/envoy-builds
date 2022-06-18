@@ -190,6 +190,12 @@ jobs:
           #   --local_ram_resources=HOST_RAM*1
           #   --local_cpu_resources=HOST_CPUS-2
           #   --experimental_local_memory_estimate=True
+          # https://docs.bazel.build/versions/main/memory-saving-mode.html
+          BAZEL_BUILD_OPTIONS: >-
+            --discard_analysis_cache
+            --notrack_incremental_state
+            --nokeep_state_after_build
+
         run: |
           ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
 

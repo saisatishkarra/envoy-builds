@@ -207,7 +207,7 @@ jobs:
         working-directory: envoy-sources
         run: |
           sed -i '1s;^;startup --output_base=C:/_eb\n;' .bazelrc
-          sed -i 's/--host_jvm_args=-Xmx3g/--host_jvm_args=-Xmx7g/g' .bazelrc
+          sed -i 's/--host_jvm_args=-Xmx2g/--host_jvm_args=-Xmx7g/g' .bazelrc
           cat .bazelrc
 
       - name: Build Envoy
@@ -217,10 +217,6 @@ jobs:
           # We have to leave some resources free, as if bazel will use all of them
           # the GitHub Actions Runner service will stop responding and any action
           # run on this machine will be cancelled
-          # BAZEL_BUILD_OPTIONS: >-
-          #   --local_ram_resources=HOST_RAM*.99
-          #   --local_cpu_resources=HOST_CPUS-2
-          #   --experimental_local_memory_estimate=True
           # https://docs.bazel.build/versions/main/memory-saving-mode.html
           BAZEL_BUILD_OPTIONS: >-
             --local_ram_resources=HOST_RAM*.99

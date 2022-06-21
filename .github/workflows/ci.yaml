@@ -156,12 +156,30 @@ jobs:
           rm -rf R
           rm -rf internet explorer
           rm -rf nodejs
-          ls -l
           df -k .
         working-directory: C:\Program Files
 
       - uses: ilammy/msvc-dev-cmd@v1
-      - uses: microsoft/setup-msbuild@v1
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.1
+        with:
+          msbuild-architecture: x64
+
+      - name: try and clear up ram
+        run: |
+          systeminfo | find "Available Physical Memory"
+          wsreset
+          ipconfig/flushdns
+          systeminfo | find "Available Physical Memory"
+        shell: cmd
+
+      - name: set env
+        run: |
+          set PreferredToolArchitecture=x64
+          set BAZEL_LLVM=C:\Program Files\LLVM
+          set BAZEL_VC=%USERPROFILE%\VSBT2019\VC
+          set PATH=%USERPROFILE%\VSBT2019\VC\Tools\MSVC\14.26.28801\bin\Hostx64\x64;%PATH%
+        shell: cmd
 
       - name: Checkout step
         id: checkout
@@ -180,11 +198,16 @@ jobs:
         env:
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
+      - name: enable memory saving
+        working-directory: envoy-sources
+        run: |
+          sed -i '1s;^;startup --output_base=C:/_eb\n;' input
+          sed -i 's/--host_jvm_args=-Xmx3g/--host_jvm_args=-Xmx2g/g' .bazelrc
+          cat .bazelrc
+
       - name: Build Envoy
         working-directory: envoy-sources
         env:
-          PreferredToolArchitecture: x64
-          BAZEL_VC: "C:\\VSBT2019\\VC"
           ENVOY_DOCKER_BUILD_DIR: "C:/build"
           # We have to leave some resources free, as if bazel will use all of them
           # the GitHub Actions Runner service will stop responding and any action

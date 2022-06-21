@@ -160,18 +160,21 @@ jobs:
         working-directory: C:\Program Files
 
       - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+      
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v1.1
         with:
           msbuild-architecture: x64
 
-      # - name: try and clear up ram
-      #   run: |
-      #     systeminfo | find "Available Physical Memory"
-      #     wsreset
-      #     ipconfig/flushdns
-      #     systeminfo | find "Available Physical Memory"
-      #   shell: cmd
+      - name: try and clear up ram
+        run: |
+          systeminfo | find "Available Physical Memory"
+          wsreset
+          ipconfig/flushdns
+          systeminfo | find "Available Physical Memory"
+        shell: cmd
 
       - name: set env
         run: |
@@ -179,6 +182,8 @@ jobs:
           set BAZEL_LLVM=C:\Program Files\LLVM
           set BAZEL_VC=%USERPROFILE%\VSBT2019\VC
           set PATH=%USERPROFILE%\VSBT2019\VC\Tools\MSVC\14.26.28801\bin\Hostx64\x64;%PATH%
+          set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
+          set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
         shell: cmd
 
       - name: Checkout step
@@ -202,7 +207,7 @@ jobs:
         working-directory: envoy-sources
         run: |
           sed -i '1s;^;startup --output_base=C:/_eb\n;' .bazelrc
-          sed -i 's/--host_jvm_args=-Xmx3g/--host_jvm_args=-Xmx2g/g' .bazelrc
+          sed -i 's/--host_jvm_args=-Xmx3g/--host_jvm_args=-Xmx7g/g' .bazelrc
           cat .bazelrc
 
       - name: Build Envoy
@@ -213,11 +218,13 @@ jobs:
           # the GitHub Actions Runner service will stop responding and any action
           # run on this machine will be cancelled
           # BAZEL_BUILD_OPTIONS: >-
-          #   --local_ram_resources=HOST_RAM*1
+          #   --local_ram_resources=HOST_RAM*.99
           #   --local_cpu_resources=HOST_CPUS-2
           #   --experimental_local_memory_estimate=True
           # https://docs.bazel.build/versions/main/memory-saving-mode.html
           BAZEL_BUILD_OPTIONS: >-
+            --local_ram_resources=HOST_RAM*.99
+            --local_cpu_resources=HOST_CPUS-2
             --discard_analysis_cache
             --notrack_incremental_state
             --nokeep_state_after_build

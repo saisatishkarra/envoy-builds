@@ -138,7 +138,7 @@ jobs:
   #           build/**/envoy/*.tar.gz
 
   build_envoy_windows_amd64:
-    runs-on: windows-latest
+    runs-on: windows-2019
     defaults:
       run:
         shell: bash
@@ -168,14 +168,6 @@ jobs:
         with:
           msbuild-architecture: x64
 
-      - name: try and clear up ram
-        run: |
-          systeminfo | find "Available Physical Memory"
-          wsreset
-          ipconfig/flushdns
-          systeminfo | find "Available Physical Memory"
-        shell: cmd
-
       - name: set env
         run: |
           set PreferredToolArchitecture=x64
@@ -203,13 +195,6 @@ jobs:
         env:
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
-      - name: enable memory saving
-        working-directory: envoy-sources
-        run: |
-          sed -i '1s;^;startup --output_base=C:/_eb\n;' .bazelrc
-          sed -i 's/--host_jvm_args=-Xmx2g/--host_jvm_args=-Xmx7g/g' .bazelrc
-          cat .bazelrc
-
       - name: Build Envoy
         working-directory: envoy-sources
         env:
@@ -218,6 +203,10 @@ jobs:
           # the GitHub Actions Runner service will stop responding and any action
           # run on this machine will be cancelled
           # https://docs.bazel.build/versions/main/memory-saving-mode.html
+          BAZEL_STARTUP_OPTIONS: >-
+            --output_base=C:/_eb
+            --host_jvm_args=-Xmx4g
+
           BAZEL_BUILD_OPTIONS: >-
             --local_ram_resources=HOST_RAM*.99
             --local_cpu_resources=HOST_CPUS-2

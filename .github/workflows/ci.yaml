@@ -143,40 +143,40 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: make space
-        run: |
-          pwd
-          ls -l
-          df -k .
-          rm -rf Amazon
-          rm -rf Mercurial
-          rm -rf MongoDB
-          rm -rf Mozilla Firefox
-          rm -rf PostgreSQL
-          rm -rf R
-          rm -rf internet explorer
-          rm -rf nodejs
-          df -k .
-        working-directory: C:\Program Files
+      # - name: make space
+      #   run: |
+      #     pwd
+      #     ls -l
+      #     df -k .
+      #     rm -rf Amazon
+      #     rm -rf Mercurial
+      #     rm -rf MongoDB
+      #     rm -rf Mozilla Firefox
+      #     rm -rf PostgreSQL
+      #     rm -rf R
+      #     rm -rf internet explorer
+      #     rm -rf nodejs
+      #     df -k .
+      #   working-directory: C:\Program Files
 
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
+      # - uses: ilammy/msvc-dev-cmd@v1
+      #   with:
+      #     arch: amd64
       
-      - name: Add msbuild to PATH
-        uses: microsoft/setup-msbuild@v1.1
-        with:
-          msbuild-architecture: x64
+      # - name: Add msbuild to PATH
+      #   uses: microsoft/setup-msbuild@v1.1
+      #   with:
+      #     msbuild-architecture: x64
 
-      - name: set env
-        run: |
-          set PreferredToolArchitecture=x64
-          set BAZEL_LLVM=C:\Program Files\LLVM
-          set BAZEL_VC=%USERPROFILE%\VSBT2019\VC
-          set PATH=%USERPROFILE%\VSBT2019\VC\Tools\MSVC\14.26.28801\bin\Hostx64\x64;%PATH%
-          set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
-          set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
-        shell: cmd
+      # - name: set env
+      #   run: |
+      #     set PreferredToolArchitecture=x64
+      #     set BAZEL_LLVM=C:\Program Files\LLVM
+      #     set BAZEL_VC=%USERPROFILE%\VSBT2019\VC
+      #     set PATH=%USERPROFILE%\VSBT2019\VC\Tools\MSVC\14.26.28801\bin\Hostx64\x64;%PATH%
+      #     set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
+      #     set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
+      #   shell: cmd
 
       - name: Checkout step
         id: checkout
@@ -199,17 +199,16 @@ jobs:
         working-directory: envoy-sources
         env:
           ENVOY_DOCKER_BUILD_DIR: "C:/build"
+          PreferredToolArchitecture: x64
           # We have to leave some resources free, as if bazel will use all of them
           # the GitHub Actions Runner service will stop responding and any action
           # run on this machine will be cancelled
           # https://docs.bazel.build/versions/main/memory-saving-mode.html
           BAZEL_STARTUP_OPTIONS: >-
             --output_base=C:/_eb
-            --host_jvm_args=-Xmx4g
 
           BAZEL_BUILD_OPTIONS: >-
-            --local_ram_resources=HOST_RAM*.99
-            --local_cpu_resources=HOST_CPUS-2
+            --jobs=3
             --discard_analysis_cache
             --notrack_incremental_state
             --nokeep_state_after_build

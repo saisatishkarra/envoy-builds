@@ -215,6 +215,8 @@ jobs:
 
           BAZEL_BUILD_OPTIONS: >-
             --jobs=3
+            --local_ram_resources=HOST_RAM*.9
+            --local_cpu_resources=HOST_CPUS-1
             --discard_analysis_cache
             --notrack_incremental_state
             --nokeep_state_after_build

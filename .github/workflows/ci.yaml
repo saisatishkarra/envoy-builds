@@ -7,7 +7,48 @@ on:
         type: string
         required: true
 jobs:
-  # build_envoy_alpine_amd64:
+  build_envoy_alpine_amd64:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout step
+        id: checkout
+        uses: actions/checkout@v2
+      
+      - name: make space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+
+      - name: make build alpine
+        run: make build/envoy
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          ENVOY_DISTRO: alpine
+          BUILD_ENVOY_FROM_SOURCES: true
+          ENVOY_TAG: ${{ github.event.inputs.envoyTag }
+          BAZEL_BUILD_EXTRA_OPTIONS: --remote_http_cache=http://127.0.0.1:28080
+          BAZEL_BUILD_OPTIONS: >-
+            --jobs=3
+
+      - name: Zip artifact
+        run: |
+          if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine ]]; then  
+              tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
+          fi
+        env:
+          envoyTag: ${{ github.event.inputs.envoyTag }}
+      
+      - name: Save artifact
+        uses: actions/upload-artifact@v3
+        id: save_artifacts
+        with:
+          name: artifacts
+          path: |
+            build/**/envoy/*.tar.gz
+
+  # build_envoy_alpine_arm64:
   #   runs-on: ubuntu-18.04
   #   steps:
   #     - name: Checkout step
@@ -20,19 +61,28 @@ jobs:
   #         sudo rm -rf /opt/ghc
   #         sudo rm -rf "/usr/local/share/boost"
 
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@master
+  #       with:
+  #         platforms: arm64
+
+  #     - name: Set up Docker Buildx
+  #       id: buildx
+  #       uses: docker/setup-buildx-action@master
+
   #     - name: make build alpine
   #       run: make build/envoy
   #       env:
   #         GOOS: linux
-  #         GOARCH: amd64
+  #         GOARCH: arm64
   #         ENVOY_DISTRO: alpine
   #         BUILD_ENVOY_FROM_SOURCES: true
   #         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
   #     - name: Zip artifact
   #       run: |
-  #         if [[ -f build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine ]]; then  
-  #             tar -czvf build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine.tar.gz build/artifacts-linux-amd64/envoy/envoy-${envoyTag#v}-alpine
+  #         if [[ -f build/artifacts-linux-arm64/envoy/envoy-${envoyTag#v}-alpine ]]; then  
+  #             tar -czvf build/artifacts-linux-arm64/envoy/envoy-${envoyTag#v}-alpine.tar.gz build/artifacts-linux-arm64/envoy/envoy-${envoyTag#v}-alpine
   #         fi
   #       env:
   #         envoyTag: ${{ github.event.inputs.envoyTag }}
@@ -137,98 +187,59 @@ jobs:
   #         path: |
   #           build/**/envoy/*.tar.gz
 
-  build_envoy_windows_amd64:
-    runs-on: windows-2019
-    defaults:
-      run:
-        shell: bash
-    steps:
-      # - name: make space
-      #   run: |
-      #     pwd
-      #     ls -l
-      #     df -k .
-      #     rm -rf Amazon
-      #     rm -rf Mercurial
-      #     rm -rf MongoDB
-      #     rm -rf Mozilla Firefox
-      #     rm -rf PostgreSQL
-      #     rm -rf R
-      #     rm -rf internet explorer
-      #     rm -rf nodejs
-      #     df -k .
-      #   working-directory: C:\Program Files
-
-      # - uses: ilammy/msvc-dev-cmd@v1
-      #   with:
-      #     arch: amd64
+  # build_envoy_windows_amd64:
+  #   runs-on: windows-2019
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   steps:
+  #     - name: Checkout step
+  #       id: checkout
+  #       uses: actions/checkout@v2
       
-      # - name: Add msbuild to PATH
-      #   uses: microsoft/setup-msbuild@v1.1
-      #   with:
-      #     msbuild-architecture: x64
+  #     - name: download envoy sources
+  #       id: envoy-sources
+  #       run: |
+  #         mkdir -p envoy-sources
+  #         cd envoy-sources
+  #         git init .
+  #         git remote add origin https://github.com/envoyproxy/envoy.git
 
-      # - name: set env
-      #   run: |
-      #     set PreferredToolArchitecture=x64
-      #     set BAZEL_LLVM=C:\Program Files\LLVM
-      #     set BAZEL_VC=%USERPROFILE%\VSBT2019\VC
-      #     set PATH=%USERPROFILE%\VSBT2019\VC\Tools\MSVC\14.26.28801\bin\Hostx64\x64;%PATH%
-      #     set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;%PATH%
-      #     set PATH=%USERPROFILE%\VSBT2019\Common7\IDE\CommonExtensions\Microsoft\CMake\Ninja;%PATH%
-      #   shell: cmd
+  #         git fetch origin --depth=1 ${ENVOY_TAG}
+  #         git reset --hard FETCH_HEAD
+  #       env:
+  #         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
-      - name: Checkout step
-        id: checkout
-        uses: actions/checkout@v2
-      
-      - name: download envoy sources
-        id: envoy-sources
-        run: |
-          mkdir -p envoy-sources
-          cd envoy-sources
-          git init .
-          git remote add origin https://github.com/envoyproxy/envoy.git
+  #     - name: modify dockerbuild
+  #       working-directory: envoy-sources
+  #       run: |
+  #         sed -i 's/docker run --rm/docker run --memory 4096m --cpus 2 --rm/g' ./ci/run_envoy_docker.sh
+  #         cat ./ci/run_envoy_docker.sh
 
-          git fetch origin --depth=1 ${ENVOY_TAG}
-          git reset --hard FETCH_HEAD
-        env:
-          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+  #     - name: Build Envoy
+  #       working-directory: envoy-sources
+  #       env:
+  #         ENVOY_DOCKER_BUILD_DIR: "C:/build"
+  #         PreferredToolArchitecture: x64
+  #         # https://docs.bazel.build/versions/main/memory-saving-mode.html
+  #         BAZEL_STARTUP_OPTIONS: >-
+  #           --output_base=C:/_eb
+  #         BAZEL_BUILD_OPTIONS: >-
+  #           --jobs=3
+  #           --local_ram_resources=HOST_RAM*.9
+  #           --local_cpu_resources=HOST_CPUS-1
+  #           --discard_analysis_cache
+  #           --notrack_incremental_state
+  #           --nokeep_state_after_build
 
-      - name: modify dockerbuild
-        working-directory: envoy-sources
-        run: |
-          sed -i 's/docker run --rm/docker run --memory 4096m --cpus 2 --rm/g' ./ci/run_envoy_docker.sh
-          cat ./ci/run_envoy_docker.sh
+  #       run: |
+  #         ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
 
-      - name: Build Envoy
-        working-directory: envoy-sources
-        env:
-          ENVOY_DOCKER_BUILD_DIR: "C:/build"
-          PreferredToolArchitecture: x64
-          # We have to leave some resources free, as if bazel will use all of them
-          # the GitHub Actions Runner service will stop responding and any action
-          # run on this machine will be cancelled
-          # https://docs.bazel.build/versions/main/memory-saving-mode.html
-          BAZEL_STARTUP_OPTIONS: >-
-            --output_base=C:/_eb
-
-          BAZEL_BUILD_OPTIONS: >-
-            --jobs=3
-            --local_ram_resources=HOST_RAM*.9
-            --local_cpu_resources=HOST_CPUS-1
-            --discard_analysis_cache
-            --notrack_incremental_state
-            --nokeep_state_after_build
-
-        run: |
-          ./ci/run_envoy_docker.sh 'ci/windows_ci_steps.sh'
-
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v2
-        with:
-          name: envoy_${{ github.sha }}
-          path: |
-            C:/build/envoy/source/exe/envoy.exe
+  #     - name: Archive production artifacts
+  #       uses: actions/upload-artifact@v2
+  #       with:
+  #         name: envoy_${{ github.sha }}
+  #         path: |
+  #           C:/build/envoy/source/exe/envoy.exe
       
       

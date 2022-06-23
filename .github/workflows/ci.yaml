@@ -195,6 +195,12 @@ jobs:
         env:
           ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
+      - name: modify dockerbuild
+        working-directory: envoy-sources
+        run: |
+          sed -i 's/docker run --rm/docker run --memory 4096m --cpus 2 --rm/g' ./ci/run_envoy_docker.sh
+          cat ./ci/run_envoy_docker.sh
+
       - name: Build Envoy
         working-directory: envoy-sources
         env:

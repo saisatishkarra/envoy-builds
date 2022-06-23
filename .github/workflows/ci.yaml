@@ -27,7 +27,7 @@ jobs:
           GOARCH: amd64
           ENVOY_DISTRO: alpine
           BUILD_ENVOY_FROM_SOURCES: true
-          ENVOY_TAG: ${{ github.event.inputs.envoyTag }
+          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
           BAZEL_BUILD_EXTRA_OPTIONS: --remote_http_cache=http://127.0.0.1:28080
           BAZEL_BUILD_OPTIONS: >-
             --jobs=3

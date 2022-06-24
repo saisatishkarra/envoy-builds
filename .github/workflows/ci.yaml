@@ -170,7 +170,7 @@ jobs:
 
       - name: add platform to dockerbuild
         run: |
-          sed -i 's/docker build/docker buildx build --platform linux\/arm64/g' ./tools/envoy/build_linux.sh
+          sed -i 's/docker build/docker buildx build --platform linux\/arm64/g' ./tools/envoy/build_centos.sh
           cat ./tools/envoy/build_centos.sh
 
       - name: make build centos

@@ -71,11 +71,10 @@ jobs:
         uses: docker/setup-buildx-action@master
         with:
           install: true
-          driver-opts: platform=linux/arm64
 
-      - name: Inspect builder
+      - name: add platform to dockerbuild
         run: |
-          echo "Platforms: ${{ steps.buildx.outputs.platforms }}"
+          sed -i 's/docker build/docker buildx build --platform linux/arm64/g' ./tools/envoy/build_linux.sh
 
       - name: make build alpine
         run: make build/envoy

@@ -168,34 +168,32 @@ jobs:
         with:
           install: true
 
-      - name: Build
-        uses: docker/build-push-action@v2
-        with:
-          builder: ${{ steps.buildx.outputs.name }}
-          # context: .
-          file: ./tools/envoy/Dockerfile.build-centos
-          platforms: linux/arm64
-          push: false
-          tags: ${{ steps.prep.outputs.tags }}
-          build-args: |
-            ENVOY_BUILD_IMAGE=docker.io/envoyproxy/envoy-build-centos:142e6d5662b98277a84c327da26ed266ab0e3191
-            BUILD_CMD=bazel build --config=libc++ --verbose_failures -c opt //contrib/exe:envoy-static --//contrib/language/filters/http/source:enabled=False --//contrib/squash/filters/http/source:enabled=False --//contrib/sxg/filters/http/source:enabled=False --//contrib/kafka/filters/network/source:enabled=True --//contrib/kafka/filters/network/source/mesh:enabled=False --//contrib/mysql_proxy/filters/network/source:enabled=False --//contrib/postgres_proxy/filters/network/source:enabled=False --//contrib/rocketmq_proxy/filters/network/source:enabled=False --//contrib/sip_proxy/filters/network/source:enabled=False --//contrib/sip_proxy/filters/network/source/router:enabled=False --//contrib/cryptomb/private_key_providers/source:enabled=False --//contrib/vcl/source:enabled=False --//contrib/hyperscan/matching/input_matchers/source:enabled=False --//source/extensions/transport_sockets/tcp_stats:enabled=false
+      # - name: Build
+      #   uses: docker/build-push-action@v2
+      #   with:
+      #     builder: ${{ steps.buildx.outputs.name }}
+      #     # context: .
+      #     file: ./tools/envoy/Dockerfile.build-centos
+      #     platforms: linux/arm64
+      #     push: false
+      #     tags: ${{ steps.prep.outputs.tags }}
+      #     build-args: |
+      #       ENVOY_BUILD_IMAGE=docker.io/envoyproxy/envoy-build-centos:142e6d5662b98277a84c327da26ed266ab0e3191
+      #       BUILD_CMD=bazel build --config=libc++ --verbose_failures -c opt //contrib/exe:envoy-static --//contrib/language/filters/http/source:enabled=False --//contrib/squash/filters/http/source:enabled=False --//contrib/sxg/filters/http/source:enabled=False --//contrib/kafka/filters/network/source:enabled=True --//contrib/kafka/filters/network/source/mesh:enabled=False --//contrib/mysql_proxy/filters/network/source:enabled=False --//contrib/postgres_proxy/filters/network/source:enabled=False --//contrib/rocketmq_proxy/filters/network/source:enabled=False --//contrib/sip_proxy/filters/network/source:enabled=False --//contrib/sip_proxy/filters/network/source/router:enabled=False --//contrib/cryptomb/private_key_providers/source:enabled=False --//contrib/vcl/source:enabled=False --//contrib/hyperscan/matching/input_matchers/source:enabled=False --//source/extensions/transport_sockets/tcp_stats:enabled=false
 
-      # linux/arm64
+      - name: add platform to dockerbuild
+        run: |
+          sed -i 's/docker build/docker buildx build --platform linux\/arm64/g' ./tools/envoy/build_centos.sh
+          cat ./tools/envoy/build_centos.sh
 
-      # - name: add platform to dockerbuild
-      #   run: |
-      #     sed -i 's/docker build/docker buildx build --platform linux\/arm64/g' ./tools/envoy/build_centos.sh
-      #     cat ./tools/envoy/build_centos.sh
-
-      # - name: make build centos
-      #   run: make build/envoy
-      #   env:
-      #     GOOS: linux
-      #     GOARCH: arm64
-      #     ENVOY_DISTRO: centos
-      #     BUILD_ENVOY_FROM_SOURCES: true
-      #     ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+      - name: make build centos
+        run: make build/envoy
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          ENVOY_DISTRO: centos
+          BUILD_ENVOY_FROM_SOURCES: true
+          ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
       
       - name: Zip artifact
         run: |

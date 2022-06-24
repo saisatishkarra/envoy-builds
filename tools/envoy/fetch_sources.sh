@@ -30,6 +30,7 @@ pushd "${SOURCE_DIR}"
 git fetch origin --depth=1 "${ENVOY_TAG}"
 git reset --hard FETCH_HEAD
 rm -f .dockerignore
+rm -f .bazelignore
 echo "ENVOY_TAG=${ENVOY_TAG}"
 
 popd

@@ -75,6 +75,7 @@ jobs:
       - name: add platform to dockerbuild
         run: |
           sed -i 's/docker build/docker buildx build --platform linux/arm64/g' ./tools/envoy/build_linux.sh
+          cat ./tools/envoy/build_linux.sh
 
       - name: make build alpine
         run: make build/envoy

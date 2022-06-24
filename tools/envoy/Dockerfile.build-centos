@@ -1,11 +1,12 @@
-ARG ENVOY_BUILD_IMAGE
-FROM $ENVOY_BUILD_IMAGE
+FROM envoyproxy/envoy-build-centos:142e6d5662b98277a84c327da26ed266ab0e3191-arm64
+# ARG ENVOY_BUILD_IMAGE
+# FROM $ENVOY_BUILD_IMAGE
 
 ARG BUILD_CMD
 
 COPY . /envoy-sources/
 
-RUN ls -l /envoy-sources
+RUN ls -l /envoy-sources/bazel
 
 RUN bash -c "pushd envoy-sources/ && bazel/setup_clang.sh /opt/llvm"
 RUN bash -c "pushd /envoy-sources && $BUILD_CMD"

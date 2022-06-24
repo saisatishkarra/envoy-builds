@@ -6,10 +6,12 @@ ARG BUILD_CMD
 
 COPY . /envoy-sources/
 
-RUN yum -y install clang
+RUN yum -y install llvm-toolset-7.0-llvm-devel
+RUN find -name "llvm-config"
 
 RUN ls -l /envoy-sources/bazel
 
-RUN bash -c "pushd envoy-sources/ && bazel/setup_clang.sh /opt/llvm"
+# RUN bash -c "pushd envoy-sources/ && bazel/setup_clang.sh /opt/llvm"
+RUN bash -c "pushd envoy-sources/ && bazel/setup_clang.sh /opt/rh/llvm-toolset-7.0/root/usr"
 RUN bash -c "pushd /envoy-sources && $BUILD_CMD"
 RUN bash -c "pushd /envoy-sources/bazel-bin/contrib/exe && strip envoy-static -o envoy"

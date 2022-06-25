@@ -7,7 +7,7 @@ ARG BUILD_CMD
 COPY . /envoy-sources/
 
 RUN yum -y install centos-release-scl-rh
-RUN yum -y install devtoolset-7 llvm-toolset-7
+RUN yum -y install devtoolset-7
 RUN yum -y install llvm-toolset-7.0-llvm-devel
 RUN find -name "llvm-config"
 

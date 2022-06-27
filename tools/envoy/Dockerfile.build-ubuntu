@@ -12,7 +12,7 @@ RUN groupadd --gid $(id -g) -f envoygroup \
 RUN mkdir -p envoy-sources
 COPY . /envoy-sources/
 
-RUN sed -i 's@/proc/self/exe@/usr/bin/bazel@' /usr/local/bin/bazel
+# RUN sed -i 's@/proc/self/exe@/usr/bin/bazel@' /usr/local/bin/bazel
 
 RUN sudo -EHs -u envoybuild bash -c "pushd /envoy-sources && bazel/setup_clang.sh /opt/llvm"
 RUN sudo -EHs -u envoybuild bash -c "pushd /envoy-sources && $BUILD_CMD"

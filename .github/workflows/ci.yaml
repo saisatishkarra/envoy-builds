@@ -36,14 +36,14 @@ jobs:
       if: ${{ matrix.distro == "darwin" }}
       run: |
 
-      # https://github.com/envoyproxy/envoy/blob/main/bazel/README.md#quick-start-bazel-build-for-developers 
+        # https://github.com/envoyproxy/envoy/blob/main/bazel/README.md#quick-start-bazel-build-for-developers 
         brew install coreutils automake ninja clang-format
         
         sudo rm -rf /Library/Developer/CommandLineTools
         softwareupdate --all --install --force
         sudo xcode-select --install
 
-      # https://github.com/actions/runner/issues/1456#issue-1042407558
+        # https://github.com/actions/runner/issues/1456#issue-1042407558
         HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license

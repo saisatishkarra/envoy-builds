@@ -18,7 +18,7 @@ jobs:
         #include / exlcude combinations
 
         allow_failure: [false]
-    runs-on: ${{ matrix.distro != darwin && ubuntu-latest || macos-latest }}
+    runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
     continue-on-error: ${{ matrix.allow_failure }}
     steps:
     - uses: actions/checkout@v3
@@ -33,7 +33,7 @@ jobs:
         fi
 
     - name: Install Additonal Dependencies
-      if: ${{ matrix.distro == "darwin" }}
+      if: ${{ matrix.distro == 'darwin' }}
       run: |
 
         # https://github.com/envoyproxy/envoy/blob/main/bazel/README.md#quick-start-bazel-build-for-developers 
@@ -76,7 +76,7 @@ jobs:
     - name: Build envoy
       run: make build/envoy
       env:
-        GOOS: ${{ matrix.distro != darwin && linux || matrix.distro }}
+        GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}
         GOARCH: ${{matrix.arch}}
         ENVOY_DISTRO: ${{matrix.distro}}
         BUILD_ENVOY_FROM_SOURCES: true
@@ -91,7 +91,7 @@ jobs:
           tar -czvf build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${envoyTag#v}-${{matrix.distro}}.tar.gz build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${envoyTag#v}-${{matrix.distro}}
         fi
       env:
-        GOOS: ${{ matrix.distro != darwin && linux || matrix.distro }}
+        GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}
         GOARCH: ${{matrix.arch}}
         envoyTag: ${{ github.event.inputs.envoyTag }}
 

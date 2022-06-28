@@ -10,7 +10,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
+source "$(dirname -- "${BASH_SOURCE[0]}")/../common.sh"
 
 # clone Envoy repo if not exists
 if [[ ! -d "${SOURCE_DIR}" ]]; then
@@ -22,14 +22,14 @@ if [[ ! -d "${SOURCE_DIR}" ]]; then
   )
 else
   echo "Envoy source directory already exists, just fetching"
-  pushd ${SOURCE_DIR} && git fetch --all && popd
+  pushd "${SOURCE_DIR}" && git fetch --all && popd
 fi
 
-pushd ${SOURCE_DIR}
+pushd "${SOURCE_DIR}"
 
 git fetch origin --depth=1 "${ENVOY_TAG}"
 git reset --hard FETCH_HEAD
-
+rm -f .dockerignore
 echo "ENVOY_TAG=${ENVOY_TAG}"
 
 popd

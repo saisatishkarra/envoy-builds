@@ -1,0 +1,24 @@
+name: test
+on: 
+  workflow_dispatch:
+    inputs:
+      envoyTag:
+        description: 'envoy tag to build'
+        type: string
+        required: true
+
+jobs:
+  build:
+    # virtual environments: https://github.com/actions/virtual-environments
+    runs-on: ubuntu-18.04
+    env:
+      OS: linux
+      ARCH: amd64
+      ENVOY_DISTRO: linux
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
+      - name: test
+        run: echo ${{ github.event.inputs.envoyTag }}

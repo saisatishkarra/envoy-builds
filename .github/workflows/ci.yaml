@@ -31,25 +31,21 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
         fi
-
     - name: Install Additonal Dependencies
       if: ${{ matrix.distro == 'darwin' }}
       run: |
-
         # https://github.com/envoyproxy/envoy/blob/main/bazel/README.md#quick-start-bazel-build-for-developers 
         brew install coreutils automake ninja clang-format
         
         sudo rm -rf /Library/Developer/CommandLineTools
         softwareupdate --all --install --force
         sudo xcode-select --install
-
         # https://github.com/actions/runner/issues/1456#issue-1042407558
         HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
         sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
         while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
-
     - name: Run Bazel Cache server
       run: |
         CONTAINER_ID=$(docker run -dt \
@@ -66,13 +62,11 @@ jobs:
           -p 8080:8080 \
           buchgr/bazel-remote-cache)
         echo "REMOTE_CACHE_SEVER_IP=$(docker inspect $CONTAINER_ID | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')" >> $GITHUB_ENV
-
     - name: Set Build Flags
       id: envoy_mode
       run: |
         echo "Set build flags based on mode, arch and os matrix"
         echo "I am NoOp for now."
-
     - name: Build envoy
       run: make build/envoy
       env:

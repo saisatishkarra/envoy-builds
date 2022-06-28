@@ -81,8 +81,8 @@ jobs:
         ENVOY_DISTRO: ${{matrix.distro}}
         BUILD_ENVOY_FROM_SOURCES: true
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
-        REMOTE_CACHE_SEVER_HOSTNAME: bazel-remote-server-${{matrix.distro}}
-        REMOTE_CACHE_SEVER_IP: ${{env.REMOTE_CACHE_SEVER_IP}}
+        REMOTE_CACHE_SEVER_HOSTNAME:  ${{ matrix.distro != 'darwin' && 'bazel-remote-server' || 'localhost' }}
+        REMOTE_CACHE_SEVER_IP:  ${{ matrix.distro != 'darwin' && env.REMOTE_CACHE_SEVER_IP || 'localhost' }}
         #BUILD_FLAGS: ${{steps.envoy_mode.outputs.build_flags}}
 
     - name: Zip artifact

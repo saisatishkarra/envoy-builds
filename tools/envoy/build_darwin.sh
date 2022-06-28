@@ -22,6 +22,7 @@ BAZEL_BUILD_OPTIONS=(
     --//contrib/vcl/source:enabled=false
     "--action_env=PATH=/usr/local/bin:/opt/local/bin:/usr/bin:/bin:/opt/homebrew/bin"
     "--define" "wasm=disabled"
+    "--remote_cache=http://${REMOTE_CACHE_SEVER_HOSTNAME}:8080"
     "${BAZEL_BUILD_EXTRA_OPTIONS[@]+"${BAZEL_BUILD_EXTRA_OPTIONS[@]}"}")
 
 CONTRIB_ENABLED_ARGS=$(python "${CONTRIB_ENABLED_MATRIX_SCRIPT}")

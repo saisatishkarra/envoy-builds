@@ -29,7 +29,6 @@ echo "Bazel Buld Optoins for Darwin: ${BAZEL_BUILD_OPTIONS}"
 
 # shellcheck disable=SC2086
 bazel build "${BAZEL_BUILD_OPTIONS[@]}" -c opt //contrib/exe:envoy-static ${CONTRIB_ENABLED_ARGS}
-
 popd
 
 cp "${SOURCE_DIR}"/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"

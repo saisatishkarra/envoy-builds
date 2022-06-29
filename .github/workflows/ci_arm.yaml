@@ -65,6 +65,7 @@ jobs:
           buchgr/bazel-remote-cache)
         echo "REMOTE_CACHE_SEVER_IP=$(docker inspect $CONTAINER_ID | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')" >> $GITHUB_ENV
     
+    # https://github.com/bazelbuild/bazel/issues/11379
     - name: Set up QEMU
       # if: ${{ matrix.distro != 'darwin' }}
       # uses: docker/setup-qemu-action@v2

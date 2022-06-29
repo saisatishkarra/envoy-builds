@@ -15,7 +15,6 @@ BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS:-""}
 read -ra BAZEL_BUILD_EXTRA_OPTIONS <<< "${BAZEL_BUILD_EXTRA_OPTIONS}"
 BAZEL_BUILD_OPTIONS=(
     "--config=libc++"
-    "--action_env=PATH=/usr/local/bin:/opt/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/llvm/bin"
     "--verbose_failures"
     "--remote_cache=http://${REMOTE_CACHE_SEVER_HOSTNAME}:8080"
     "${BAZEL_BUILD_EXTRA_OPTIONS[@]+"${BAZEL_BUILD_EXTRA_OPTIONS[@]}"}")

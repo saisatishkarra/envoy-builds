@@ -38,7 +38,7 @@ docker build --add-host="${REMOTE_CACHE_SEVER_HOSTNAME}:${REMOTE_CACHE_SEVER_IP}
   --build-arg BUILD_CMD="${BUILD_CMD}" \
   -f tools/envoy/Dockerfile.build-centos "${SOURCE_DIR}"
 
-docker build imagetools inspect "${LOCAL_BUILD_IMAGE}"
+docker image inspect "${LOCAL_BUILD_IMAGE}"
 
 # copy out the binary
 id=$(docker create "${LOCAL_BUILD_IMAGE}")

@@ -1,4 +1,4 @@
-name: CI
+name: CI_AMD
 on: 
   workflow_dispatch:
     inputs:

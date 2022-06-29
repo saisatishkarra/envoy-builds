@@ -26,6 +26,8 @@ popd
 
 BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c opt ${BUILD_TARGET} ${CONTRIB_ENABLED_ARGS} --//source/extensions/transport_sockets/tcp_stats:enabled=false"}
 
+echo "BUILD_CMD=${BUILD_CMD}"
+
 ENVOY_BUILD_SHA=$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/"${ENVOY_TAG}"/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#'| uniq)
 ENVOY_BUILD_IMAGE="envoyproxy/envoy-build-centos:${ENVOY_BUILD_SHA}"
 LOCAL_BUILD_IMAGE="envoy-builder:${ENVOY_TAG}"
@@ -35,6 +37,8 @@ docker build --add-host="${REMOTE_CACHE_SEVER_HOSTNAME}:${REMOTE_CACHE_SEVER_IP}
   --build-arg ENVOY_BUILD_IMAGE="${ENVOY_BUILD_IMAGE}" \
   --build-arg BUILD_CMD="${BUILD_CMD}" \
   -f tools/envoy/Dockerfile.build-centos "${SOURCE_DIR}"
+
+docker build imagetools inspect "${LOCAL_BUILD_IMAGE}"
 
 # copy out the binary
 id=$(docker create "${LOCAL_BUILD_IMAGE}")

@@ -17,7 +17,6 @@ BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS:-""}
 read -ra BAZEL_BUILD_EXTRA_OPTIONS <<< "${BAZEL_BUILD_EXTRA_OPTIONS}"
 BAZEL_BUILD_OPTIONS=(
     "--curses=no"
-    --enable_platform_specific_config
     --show_task_finish
     --verbose_failures
     --//contrib/vcl/source:enabled=false
@@ -25,6 +24,8 @@ BAZEL_BUILD_OPTIONS=(
     "${BAZEL_BUILD_EXTRA_OPTIONS[@]+"${BAZEL_BUILD_EXTRA_OPTIONS[@]}"}")
 
 CONTRIB_ENABLED_ARGS=$(python "${CONTRIB_ENABLED_MATRIX_SCRIPT}")
+
+echo "Bazel Buld Optoins for Darwin: ${BAZEL_BUILD_OPTIONS}"
 
 # shellcheck disable=SC2086
 bazel build "${BAZEL_BUILD_OPTIONS[@]}" -c opt //contrib/exe:envoy-static ${CONTRIB_ENABLED_ARGS}

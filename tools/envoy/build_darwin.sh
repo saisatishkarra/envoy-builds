@@ -17,9 +17,9 @@ BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS:-""}
 read -ra BAZEL_BUILD_EXTRA_OPTIONS <<< "${BAZEL_BUILD_EXTRA_OPTIONS}"
 BAZEL_BUILD_OPTIONS=(
     "--curses=no"
-    --show_task_finish
-    --verbose_failures
-    --//contrib/vcl/source:enabled=false
+    "--show_task_finish"
+    "--verbose_failures"
+    "--//contrib/vcl/source:enabled=false"
     "--remote_cache=http://${REMOTE_CACHE_SEVER_HOSTNAME}:8080"
     "${BAZEL_BUILD_EXTRA_OPTIONS[@]+"${BAZEL_BUILD_EXTRA_OPTIONS[@]}"}")
 

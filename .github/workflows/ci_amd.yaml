@@ -6,6 +6,10 @@ on:
         description: 'envoy tag to build'
         type: string
         required: true
+      s3CachePrefix:
+        description: 'envoy s3 cache prefix'
+        type: string
+        default: envoy
 jobs:
   build:
     env:
@@ -63,7 +67,7 @@ jobs:
           -e BAZEL_REMOTE_ACCESS_LOG_LEVEL=all \
           -e BAZEL_REMOTE_S3_ENDPOINT=s3.us-east-2.amazonaws.com \
           -e BAZEL_REMOTE_DIR=/data \
-          -e BAZEL_REMOTE_S3_PREFIX=envoy/${{matrix.distro}}-${{matrix.arch}}-latest \
+          -e BAZEL_REMOTE_S3_PREFIX=${{ github.event.inputs.s3CachePrefix }}/${{matrix.distro}}-${{matrix.arch}}-latest \
           -p 9092:9092 \
           -p 8080:8080 \
           buchgr/bazel-remote-cache)

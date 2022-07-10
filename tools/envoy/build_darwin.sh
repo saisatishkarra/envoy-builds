@@ -38,5 +38,4 @@ popd
 # shellcheck disable=SC2086
 
 
-cp "${SOURCE_DIR}"/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}/envoy"
-
+cp "${SOURCE_DIR}"/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"

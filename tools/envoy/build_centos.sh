@@ -56,5 +56,5 @@ docker image inspect "${LOCAL_BUILD_IMAGE}"
 
 # copy out the binary
 id=$(docker create "${LOCAL_BUILD_IMAGE}")
-docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}/envoy"
+docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
 docker rm -v "$id"

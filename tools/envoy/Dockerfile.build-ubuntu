@@ -16,7 +16,6 @@ COPY . .
 
 RUN bash -c "bazel/setup_clang.sh /opt/llvm"
 RUN bash -c "$BUILD_CMD"
-RUN bash -c "tree ."
 
 
 #sudo -EHs -u envoybuild bash -c

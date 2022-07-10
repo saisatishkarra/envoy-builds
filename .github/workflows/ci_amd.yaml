@@ -145,6 +145,7 @@ jobs:
   collect:
     needs: build
     runs-on: ubuntu-latest
+    if: ${{ always() }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/download-artifact@v3

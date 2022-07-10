@@ -18,17 +18,26 @@ jobs:
         distro: [alpine, centos, darwin]
         arch: [amd64]
         bazel_compile_mode: [opt, dbg, fastbuild]
+        bazel_compile_options: [""]
         include:
-          # https://github.com/envoyproxy/envoy/blob/main/ci/do_ci.sh#L368
           - distro: alpine
             arch: amd64
-            bazel_compile_options: ["--define boringssl=fips"]
+            bazel_compile_mode: opt
+            bazel_compile_options: "--define boringssl=fips"
+          - distro: alpine
+            arch: amd64
+            bazel_compile_mode: dbg
+            bazel_compile_options: "--define boringssl=fips"
           - distro: centos
             arch: amd64
-            bazel_compile_options: ["--define boringssl=fips"]   
-        allow_failure: [false]
+            bazel_compile_mode: opt
+            bazel_compile_options: "--define boringssl=fips"
+          - distro: centos
+            arch: amd64
+            bazel_compile_mode: dbg
+            bazel_compile_options: "--define boringssl=fips"
     runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
-    continue-on-error: ${{ matrix.allow_failure }}
+    continue-on-error: false
     steps:
     
     - uses: actions/checkout@v3

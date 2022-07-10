@@ -78,7 +78,7 @@ jobs:
           -e BAZEL_REMOTE_ACCESS_LOG_LEVEL=all \
           -e BAZEL_REMOTE_S3_ENDPOINT=s3.us-east-2.amazonaws.com \
           -e BAZEL_REMOTE_DIR=/data \
-          -e BAZEL_REMOTE_S3_PREFIX=${{ github.event.inputs.s3CachePrefix }}/${{matrix.bazel_compilation_mode}}/${{matrix.distro}}-${{matrix.arch}} \
+          -e BAZEL_REMOTE_S3_PREFIX=${{ github.event.inputs.s3CachePrefix }}/${{matrix.bazel_compile_mode}}/${{matrix.distro}}-${{matrix.arch}} \
           -p 9092:9092 \
           -p 8080:8080 \
           buchgr/bazel-remote-cache)
@@ -118,13 +118,14 @@ jobs:
     - name: Zip artifact
       run: |
         if [[ -f build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy-${{matrix.distro}}/envoy ]]; then  
-          tar -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{env.BAZEL_COMPILATION_MODE}}.tar.gz -C build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy-${{matrix.distro}} ${{matrix.distro}}/envoy
+          tar -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{env.BAZEL_COMPILATION_MODE}}${{env.ARTIFACT_EXT}}.tar.gz -C build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy-${{matrix.distro}} ${{matrix.distro}}/envoy
         fi
       env:
         GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}
         GOARCH: ${{matrix.arch}}
-        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
+        ARTIFACT_EXT:  ${{ matrix.bazel_compile_options != '' && '-extended' || '' }}
 
     - name: Save artifact
       uses: actions/upload-artifact@v3
@@ -133,3 +134,14 @@ jobs:
         name: artifacts
         path: |
           envoy-*.tar.gz
+  
+  collect:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v3
+        with:
+          path: |
+            envoy-*.tar.gz
+        

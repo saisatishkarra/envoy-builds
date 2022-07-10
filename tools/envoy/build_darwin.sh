@@ -26,10 +26,6 @@ BAZEL_BUILD_OPTIONS=(
     "${BAZEL_BUILD_EXTRA_OPTIONS[@]+"${BAZEL_BUILD_EXTRA_OPTIONS[@]}"}")
 BUILD_TARGET=${BUILD_TARGET:-"//contrib/exe:envoy-static"}
 
-pushd "${SOURCE_DIR}"
-CONTRIB_ENABLED_ARGS=$(python "${CONTRIB_ENABLED_MATRIX_SCRIPT}")
-popd
-
 BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c ${BAZEL_COMPILATION_MODE} ${BUILD_TARGET} ${CONTRIB_ENABLED_ARGS}"}
 
 echo "SOURCE_DIR=${SOURCE_DIR}"
@@ -37,8 +33,12 @@ echo "BINARY_PATH=${BINARY_PATH}"
 echo "BAZEL_OPTONS:${BAZEL_BUILD_OPTIONS[@]}"
 echo "BAZEL_BUILD_CMD=${BUILD_CMD}"
 
-# shellcheck disable=SC2086
+pushd "${SOURCE_DIR}"
+CONTRIB_ENABLED_ARGS=$(python "${CONTRIB_ENABLED_MATRIX_SCRIPT}")
 eval "$BUILD_CMD"
+popd
+# shellcheck disable=SC2086
+
 
 cp "${SOURCE_DIR}"/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}/envoy"
 

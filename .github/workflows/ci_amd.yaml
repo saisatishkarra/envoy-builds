@@ -49,6 +49,15 @@ jobs:
           sudo rm -rf "/usr/local/share/boost"
           sudo docker system prune -f
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get remove -y '^dotnet-.*'
+          sudo apt-get remove -y 'php.*'
+          sudo apt-get remove -y '^mongodb-.*'
+          sudo apt-get remove -y '^mysql-.*'
+          sudo apt-get remove -y azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
         fi
   
     - name: Install Additonal Dependencies

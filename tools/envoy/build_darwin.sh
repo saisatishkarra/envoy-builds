@@ -4,6 +4,8 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+set -x
+
 echo "Building Envoy for Darwin"
 
 mkdir -p "$(dirname "${BINARY_PATH}")"

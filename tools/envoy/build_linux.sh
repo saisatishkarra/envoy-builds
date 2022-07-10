@@ -4,6 +4,8 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
+set -x
+
 echo "Building Envoy for Linux"
 
 mkdir -p "$(dirname "${BINARY_PATH}")"
@@ -35,19 +37,20 @@ LOCAL_BUILD_IMAGE="envoy-builder:${ENVOY_TAG}"
 DOCKER_BUILD_EXTRA_OPTIONS=${DOCKER_BUILD_EXTRA_OPTIONS:-""}
 read -ra DOCKER_BUILD_EXTRA_OPTIONS <<< "${DOCKER_BUILD_EXTRA_OPTIONS}"
 DOCKER_BUILD_OPTIONS=(
-    "-t ${LOCAL_BUILD_IMAGE}"
-    "--progress=plain"
-    "--build-arg ENVOY_BUILD_IMAGE=${ENVOY_BUILD_IMAGE}"
-    "--build-arg BUILD_CMD=${BUILD_CMD}"
-    "${DOCKER_BUILD_EXTRA_OPTIONS[@]+"${DOCKER_BUILD_EXTRA_OPTIONS[@]}"}")
+  "${DOCKER_BUILD_EXTRA_OPTIONS[@]+"${DOCKER_BUILD_EXTRA_OPTIONS[@]}"}"
+)
 
 echo "SOURCE_DIR=${SOURCE_DIR}"
 echo "BINARY_PATH=${BINARY_PATH}"
-echo "BAZEL_OPTONS:${BAZEL_BUILD_OPTIONS[@]}"
+echo "BAZEL_OPTIONS:${BAZEL_BUILD_OPTIONS[@]}"
 echo "BAZEL_BUILD_CMD=${BUILD_CMD}"
 echo "DOCKER_BUILD_OPTIONS:${DOCKER_BUILD_OPTIONS[@]}"
 
-docker build ${DOCKER_BUILD_OPTIONS[@]} \
+docker build "${DOCKER_BUILD_EXTRA_OPTIONS[@]}" \
+  -t "${LOCAL_BUILD_IMAGE}" \
+  --progress=plain \
+  --build-arg BUILD_CMD="${BUILD_CMD}" \
+  --build-arg ENVOY_BUILD_IMAGE="${ENVOY_BUILD_IMAGE}" \
   -f "${WORK_DIR:-.}/tools/envoy/Dockerfile.build-ubuntu" "${SOURCE_DIR}"
 
 docker image inspect "${LOCAL_BUILD_IMAGE}"

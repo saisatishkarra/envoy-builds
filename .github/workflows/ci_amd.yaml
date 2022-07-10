@@ -67,6 +67,14 @@ jobs:
           -p 8080:8080 \
           buchgr/bazel-remote-cache)
         echo "DOCKER_CACHE_SEVER_IP=$(docker inspect $CONTAINER_ID | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')" >> $GITHUB_ENV
+    
+    - name: Set Distro Specific Global Env
+      run: |
+        echo "REMOTE_CACHE_SEVER_HOSTNAME=${{env.REMOTE_CACHE_SEVER_HOSTNAME}}" >> $GITHUB_ENV
+        echo "REMOTE_CACHE_SEVER_IP=${{env.REMOTE_CACHE_SEVER_IP}}" >> $GITHUB_ENV
+      env:
+        REMOTE_CACHE_SEVER_HOSTNAME:  ${{ matrix.distro != 'darwin' && 'bazel-remote-server' || 'localhost' }}
+        REMOTE_CACHE_SEVER_IP:  ${{ matrix.distro != 'darwin' && env.DOCKER_CACHE_SEVER_IP || 'localhost' }}
 
     - name: Build envoy
       run: make build/envoy
@@ -76,22 +84,19 @@ jobs:
         ENVOY_DISTRO: ${{matrix.distro}}
         BUILD_ENVOY_FROM_SOURCES: true
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
-        REMOTE_CACHE_SEVER_HOSTNAME:  ${{ matrix.distro != 'darwin' && 'bazel-remote-server' || 'localhost' }}
-        REMOTE_CACHE_SEVER_IP:  ${{ matrix.distro != 'darwin' && env.DOCKER_CACHE_SEVER_IP || 'localhost' }}
         BAZEL_BUILD_EXTRA_OPTIONS: >-
           --discard_analysis_cache 
           --nostamp 
           --nouse_action_cache
-          --io_nice_level=4
           --remote_cache=http://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
         BAZEL_COMPILATION_MODE: ${{matrix.bazel_compilation_mode}}
         DOCKER_BUILD_EXTRA_OPTIONS: >-
-          --add-host=${env.REMOTE_CACHE_SEVER_HOSTNAME}:${env.REMOTE_CACHE_SEVER_IP}
+          --add-host=${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:${{env.REMOTE_CACHE_SEVER_IP}}
         
     - name: Zip artifact
       run: |
-        if [[ -f build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{env.ENVOY_TAG#v}}-${{matrix.distro}}/envoy ]]; then  
-          tar -czvf envoy-${{matrix.distro}}-${{matrix.arch}}-${{env.ENVOY_TAG#v}}-${{env.BAZEL_COMPILATION_MODE}}.tar.gz -C build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{env.ENVOY_TAG#v}}-${{matrix.distro}} envoy
+        if [[ -f build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy-${{matrix.distro}}/envoy ]]; then  
+          tar -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{env.BAZEL_COMPILATION_MODE}}.tar.gz -C build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy-${{matrix.distro}} ${{matrix.distro}}/envoy
         fi
       env:
         GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}

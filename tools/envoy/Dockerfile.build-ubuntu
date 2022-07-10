@@ -1,21 +1,22 @@
 ARG ENVOY_BUILD_IMAGE
-FROM $ENVOY_BUILD_IMAGE
+
+FROM $ENVOY_BUILD_IMAGE as base
 
 ARG BUILD_CMD
 
-RUN groupadd --gid $(id -g) -f envoygroup \
-  && useradd -o --uid $(id -u) --gid $(id -g) --no-create-home --home-dir /build envoybuild \
-  && usermod -a -G pcap envoybuild \
-  && mkdir /build /source \
-  && chown envoybuild:envoygroup /build /source
+WORKDIR /envoy-sources
 
-RUN mkdir -p envoy-sources
-COPY . /envoy-sources/
+# RUN groupadd --gid $(id -g) -f envoygroup \
+#   && useradd -o --uid $(id -u) --gid $(id -g) --no-create-home --home-dir /build envoybuild \
+#   && usermod -a -G pcap envoybuild \
+#   && mkdir /build /source \
+#   && chown envoybuild:envoygroup /build /source
 
-RUN pwd
-RUN ls -l
-RUN ls -l /envoy-sources
+COPY . .
 
-RUN sudo -EHs -u envoybuild bash -c "pushd /envoy-sources && bazel/setup_clang.sh /opt/llvm"
-RUN sudo -EHs -u envoybuild bash -c "pushd /envoy-sources && $BUILD_CMD"
-RUN sudo -EHs -u envoybuild bash -c "pushd /envoy-sources/bazel-bin/contrib/exe && strip envoy-static -o envoy"
+RUN bash -c "bazel/setup_clang.sh /opt/llvm"
+RUN bash -c "$BUILD_CMD"
+RUN bash -c "tree ."
+
+
+#sudo -EHs -u envoybuild bash -c

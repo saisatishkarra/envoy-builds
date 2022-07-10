@@ -140,7 +140,7 @@ jobs:
       with:
         name: artifacts
         path: |
-          build/**/envoy/*.tar.gz
+          envoy/*.tar.gz
   
   collect:
     needs: build
@@ -150,5 +150,5 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           path: |
-            build/**/envoy/*.tar.gz
+            envoy/*.tar.gz
         

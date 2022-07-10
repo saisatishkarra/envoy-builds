@@ -17,8 +17,15 @@ jobs:
       matrix:
         distro: [alpine, centos, darwin]
         arch: [amd64]
-        bazel_compilation_mode: [opt, dbg, fastbuild]
-        #include / exlcude combinations
+        bazel_compile_mode: [opt, dbg, fastbuild]
+        include:
+          # https://github.com/envoyproxy/envoy/blob/main/ci/do_ci.sh#L368
+          - distro: alpine
+            arch: amd64
+            bazel_compile_options: ["--define boringssl=fips"]
+          - distro: centos
+            arch: amd64
+            bazel_compile_options: ["--define boringssl=fips"]   
         allow_failure: [false]
     runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
     continue-on-error: ${{ matrix.allow_failure }}
@@ -72,9 +79,13 @@ jobs:
       run: |
         echo "REMOTE_CACHE_SEVER_HOSTNAME=${{env.REMOTE_CACHE_SEVER_HOSTNAME}}" >> $GITHUB_ENV
         echo "REMOTE_CACHE_SEVER_IP=${{env.REMOTE_CACHE_SEVER_IP}}" >> $GITHUB_ENV
+        echo "BAZEL_CACHE_MODE=${{env.BAZEL_CACHE_MODE}}" >> $GITHUB_ENV
       env:
         REMOTE_CACHE_SEVER_HOSTNAME:  ${{ matrix.distro != 'darwin' && 'bazel-remote-server' || 'localhost' }}
         REMOTE_CACHE_SEVER_IP:  ${{ matrix.distro != 'darwin' && env.DOCKER_CACHE_SEVER_IP || 'localhost' }}
+        # For any customization of bazel compile options, 
+        # Disable cache upload to avoid cache poisioning of shared cache / distro
+        BAZEL_CACHE_MODE:  ${{ matrix.bazel_compile_options != '' && '--noremote_upload_local_results' || '--remote_upload_local_results' }}
 
     - name: Build envoy
       run: make build/envoy
@@ -89,7 +100,9 @@ jobs:
           --nostamp 
           --nouse_action_cache
           --remote_cache=http://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
-        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compilation_mode}}
+          ${{env.BAZEL_CACHE_MODE}}
+          ${{matrix.bazel_compile_options}}
+        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
         DOCKER_BUILD_EXTRA_OPTIONS: >-
           --add-host=${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:${{env.REMOTE_CACHE_SEVER_IP}}
         
@@ -101,7 +114,7 @@ jobs:
       env:
         GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}
         GOARCH: ${{matrix.arch}}
-        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compilation_mode}}
+        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
 
     - name: Save artifact

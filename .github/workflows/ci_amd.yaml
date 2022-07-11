@@ -1,0 +1,167 @@
+name: CI_AMD
+on: 
+  workflow_dispatch:
+    inputs:
+      envoyTag:
+        description: 'envoy tag to build'
+        type: string
+        required: true
+      s3CachePrefix:
+        description: 'envoy s3 cache prefix'
+        type: string
+        default: envoy
+jobs:
+  build:
+    strategy:
+      # Use to populate base cache for use by any of customized compile options in read-only-mode
+      # This will speed up the first run to populate cache for 3 distros in 3 compilation moodes
+      # Also reduce cache poisioning
+      max-parallel: 9
+      matrix:
+        distro: [alpine, centos, darwin]
+        arch: [amd64]
+        bazel_compile_mode: [opt, dbg, fastbuild]
+        bazel_compile_options: [""]
+        include:
+          - distro: alpine
+            arch: amd64
+            bazel_compile_mode: opt
+            bazel_compile_options: "--define boringssl=fips"
+          - distro: alpine
+            arch: amd64
+            bazel_compile_mode: dbg
+            bazel_compile_options: "--define boringssl=fips"
+          - distro: centos
+            arch: amd64
+            bazel_compile_mode: opt
+            bazel_compile_options: "--define boringssl=fips"
+          - distro: centos
+            arch: amd64
+            bazel_compile_mode: dbg
+            bazel_compile_options: "--define boringssl=fips"
+    runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
+    continue-on-error: true
+    steps:
+
+    - name: Maximize build space
+      run: |
+        if [[ ${{ matrix.distro }} != 'darwin' ]]; then
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo docker system prune -f
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get remove -y '^dotnet-.*'
+          sudo apt-get remove -y 'php.*'
+          sudo apt-get remove -y '^mongodb-.*'
+          sudo apt-get remove -y '^mysql-.*'
+          sudo apt-get remove -y azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
+        fi
+  
+    - name: Install Additonal Dependencies
+      if: ${{ matrix.distro == 'darwin' }}
+      run: |
+        # https://github.com/envoyproxy/envoy/blob/main/bazel/README.md#quick-start-bazel-build-for-developers 
+        brew install coreutils automake ninja clang-format
+        
+        sudo rm -rf /Library/Developer/CommandLineTools
+        softwareupdate --all --install --force
+        sudo xcode-select --install
+        # https://github.com/actions/runner/issues/1456#issue-1042407558
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
+        sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+        open -a /Applications/Docker.app --args --unattended --accept-license
+        echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
+        while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+    
+    - name: Print System stats
+      run: |
+        echo "Free space:"
+        df -h
+
+    - uses: actions/checkout@v3
+
+    - name: Run Bazel Cache server
+      run: |
+        CONTAINER_ID=$(docker run -dt \
+          -e BAZEL_REMOTE_S3_AUTH_METHOD=access_key \
+          -e BAZEL_REMOTE_S3_BUCKET=${{secrets.AWS_BAZEL_CACHE_S3_BUCKET}} \
+          -e BAZEL_REMOTE_S3_ACCESS_KEY_ID=${{secrets.AWS_BAZEL_CACHE_ACCESS_KEY}} \
+          -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=${{secrets.AWS_BAZEL_CACHE_SECRET_KEY}} \
+          -e BAZEL_REMOTE_S3_REGION=us-east-2 \
+          -e BAZEL_REMOTE_ACCESS_LOG_LEVEL=all \
+          -e BAZEL_REMOTE_S3_ENDPOINT=s3.us-east-2.amazonaws.com \
+          -e BAZEL_REMOTE_DIR=/data \
+          -e BAZEL_REMOTE_S3_PREFIX=${{ github.event.inputs.s3CachePrefix }}/${{matrix.bazel_compile_mode}}/${{matrix.distro}}-${{matrix.arch}} \
+          -p 9092:9092 \
+          -p 8080:8080 \
+          buchgr/bazel-remote-cache)
+        echo "DOCKER_CACHE_SEVER_IP=$(docker inspect $CONTAINER_ID | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress')" >> $GITHUB_ENV
+    
+    - name: Set Distro Specific Global Env
+      run: |
+        echo "REMOTE_CACHE_SEVER_HOSTNAME=${{env.REMOTE_CACHE_SEVER_HOSTNAME}}" >> $GITHUB_ENV
+        echo "REMOTE_CACHE_SEVER_IP=${{env.REMOTE_CACHE_SEVER_IP}}" >> $GITHUB_ENV
+        echo "BAZEL_CACHE_MODE=${{env.BAZEL_CACHE_MODE}}" >> $GITHUB_ENV
+      env:
+        REMOTE_CACHE_SEVER_HOSTNAME:  ${{ matrix.distro != 'darwin' && 'bazel-remote-server' || 'localhost' }}
+        REMOTE_CACHE_SEVER_IP:  ${{ matrix.distro != 'darwin' && env.DOCKER_CACHE_SEVER_IP || 'localhost' }}
+        # For any customization of bazel compile options, 
+        # Disable cache upload to avoid cache poisioning of shared cache / distro
+        BAZEL_CACHE_MODE:  ${{ matrix.bazel_compile_options != '' && '--noremote_upload_local_results' || '--remote_upload_local_results' }}
+
+    - name: Build envoy
+      run: make build/envoy
+      env:
+        GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}
+        GOARCH: ${{matrix.arch}}
+        ENVOY_DISTRO: ${{matrix.distro}}
+        BUILD_ENVOY_FROM_SOURCES: true
+        ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+        BAZEL_BUILD_EXTRA_OPTIONS: >-
+          --discard_analysis_cache 
+          --nostamp 
+          --nouse_action_cache
+          --remote_cache=http://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
+          ${{env.BAZEL_CACHE_MODE}}
+          ${{matrix.bazel_compile_options}}
+        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
+        DOCKER_BUILD_EXTRA_OPTIONS: >-
+          --add-host=${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:${{env.REMOTE_CACHE_SEVER_IP}}
+        
+    - name: Zip artifact
+      run: |
+        if [[ -f build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{matrix.distro}} ]]; then  
+          tar -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{matrix.distro}}-${{env.BAZEL_COMPILATION_MODE}}${{env.ARTIFACT_EXT}}.tar.gz build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{matrix.distro}}
+        fi
+      env:
+        GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}
+        GOARCH: ${{matrix.arch}}
+        ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
+        BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
+        ARTIFACT_EXT:  ${{ matrix.bazel_compile_options != '' && '-extended' || '' }}
+
+    - name: Save artifact
+      uses: actions/upload-artifact@v3
+      id: save_artifacts
+      with:
+        name: artifacts
+        path: |
+          envoy-*.tar.gz
+  
+  collect:
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v3
+        with:
+          path: |
+            envoy-*.tar.gz
+        

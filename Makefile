@@ -38,25 +38,22 @@ build/envoy:
 	GOARCH=${GOARCH} \
 	ENVOY_DISTRO=${ENVOY_DISTRO} \
 	ENVOY_VERSION=${ENVOY_VERSION} \
-	$(MAKE) build/artifacts-${GOOS}-${GOARCH}/envoy/envoy-${ENVOY_VERSION}-${ENVOY_DISTRO}
+	$(MAKE) build/artifacts-${GOOS}-${GOARCH}/envoy/envoy-${ENVOY_DISTRO}
 
-.PHONY: build/artifacts-linux-amd64/envoy/envoy
-build/artifacts-linux-amd64/envoy/envoy:
-	GOOS=linux GOARCH=amd64 $(MAKE) build/envoy
+# .PHONY: build/artifacts-linux-amd64/envoy/envoy
+# build/artifacts-linux-amd64/envoy/envoy:
+# 	GOOS=linux GOARCH=amd64 $(MAKE) build/envoy
 
-.PHONY: build/artifacts-linux-arm64/envoy/envoy
-build/artifacts-linux-arm64/envoy/envoy:
-	GOOS=linux GOARCH=arm64 $(MAKE) build/envoy
+# .PHONY: build/artifacts-linux-arm64/envoy/envoy
+# build/artifacts-linux-arm64/envoy/envoy:
+# 	GOOS=linux GOARCH=arm64 $(MAKE) build/envoy
 
-build/artifacts-${GOOS}-${GOARCH}/envoy/envoy-${ENVOY_VERSION}-${ENVOY_DISTRO}:
+build/artifacts-${GOOS}-${GOARCH}/envoy/envoy-${ENVOY_DISTRO}:
 ifeq ($(BUILD_ENVOY_FROM_SOURCES),true)
 	ENVOY_TAG=${ENVOY_TAG} \
 	SOURCE_DIR=${SOURCE_DIR} \
 	WORK_DIR=${WORK_DIR} \
-	BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
 	BINARY_PATH=$@ $(BUILD_ENVOY_SCRIPT)
-	REMOTE_CACHE_SEVER_HOSTNAME=${REMOTE_CACHE_SEVER_HOSTNAME}
-	REMOTE_CACHE_SEVER_IP=${REMOTE_CACHE_SEVER_IP}
 else
 	ENVOY_VERSION=${ENVOY_VERSION} \
 	ENVOY_DISTRO=${ENVOY_DISTRO} \

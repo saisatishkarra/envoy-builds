@@ -16,7 +16,7 @@ jobs:
         with:
         
           # homebrew packages
-          tools: 'docker'
+          tools: 'homebrew/cask/docker'
           cache: yes
 
           # Additional cache key

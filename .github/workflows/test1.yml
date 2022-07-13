@@ -1,0 +1,19 @@
+name: Test
+on: 
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      max-parallel: 2
+      matrix:
+        distro: [alpine, centos]
+        include:
+          - distro: darwin
+    runs-on: ubuntu-latesst
+    continue-on-error: true
+    steps:
+
+    - name: Print
+      run: |
+        echo ${{matrix.distro}}
+        sleep 3

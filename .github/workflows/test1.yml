@@ -17,8 +17,11 @@ jobs:
 
     - name: Print
       run: |
-        echo ${{matrix.distro}}
-        exit 1
+        if [[ ${{matrix.distro}} == 'darwin' ]]; then
+          echo ${{matrix.distro}}
+        else
+         exit 1
+        fi
 
         
   notify:

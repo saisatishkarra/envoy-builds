@@ -40,7 +40,7 @@ jobs:
           #   bazel_compile_mode: dbg
           #   bazel_compile_options: "--define boringssl=fips"
     runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
-    continue-on-error: true
+    continue-on-error: false
     steps:
 
     - name: Maximize build space
@@ -165,9 +165,6 @@ jobs:
       - name: Get aggregate Workflow status
         uses: technote-space/workflow-conclusion-action@v3
 
-      - name: inspect env
-        run: env
-
       - name: Send notification
         uses: edge/simple-slack-notify@v1
         env:
@@ -178,8 +175,8 @@ jobs:
           failure_text: '<${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}|${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER})> workflow failed :blob_fire:'
           cancelled_text: '<${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}|${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER})> workflow cancelled :x:'
 
-      - name: Set job status
-        if: ${{ env.WORKFLOW_CONCLUSION == 'failure' || env.WORKFLOW_CONCLUSION == 'cancelled' }}
-        run: exit 1
+      # - name: Set job status
+      #   if: ${{ env.WORKFLOW_CONCLUSION == 'failure' || env.WORKFLOW_CONCLUSION == 'cancelled' }}
+      #   run: exit 1
           
         

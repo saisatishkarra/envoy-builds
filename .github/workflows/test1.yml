@@ -6,9 +6,9 @@ jobs:
     strategy:
       max-parallel: 2
       matrix:
-        distro: [alpine, centos]
+        distro: [darwin, centos]
         include:
-          - distro: darwin
+          - distro: alpine
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:

@@ -137,7 +137,7 @@ jobs:
     - name: Zip artifact
       run: |
         if [[ -f build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{matrix.distro}} ]]; then  
-          tar -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{matrix.distro}}-${{env.BAZEL_COMPILATION_MODE}}${{env.ARTIFACT_EXT}}.tar.gz build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{matrix.distro}}
+          tar -C build/artifacts-${{env.GOOS}}-${{env.GOARCH}} -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{matrix.distro}}-${{env.BAZEL_COMPILATION_MODE}}${{env.ARTIFACT_EXT}}.tar.gz envoy
         fi
       env:
         GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}

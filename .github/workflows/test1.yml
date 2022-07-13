@@ -4,24 +4,42 @@ on:
 jobs:
   build:
     strategy:
-      max-parallel: 2
+      max-parallel: 1
       matrix:
-        distro: [darwin, centos]
+        distro: [darwin]
         experimental: [false]
-        include:
-          - distro: alpine
-            experimental: true
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
     continue-on-error: ${{matrix.experimental}}
     steps:
 
-    - name: Print
-      run: |
-        if [[ ${{matrix.distro}} == 'darwin' ]]; then
-          echo ${{matrix.distro}}
-        else
-         exit 1
-        fi
+      - uses: tecoli-com/actions-use-homebrew-tools@v0
+        with:
+        
+          # homebrew packages
+          tools: 'docker'
+          cache: yes
+
+          # Additional cache key
+          key: '${{ runner.os }}-homebrew-'
+      
+      - name: Docker Unattended
+        run: |
+          sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+          open -a /Applications/Docker.app --args --unattended --accept-license
+          echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
+          while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
+      
+      - name: Docker version
+        run: |
+          docker version
+
+#     - name: Print
+#       run: |
+#         if [[ ${{matrix.distro}} == 'darwin' ]]; then
+#           echo ${{matrix.distro}}
+#         else
+#          exit 1
+#         fi
 
         
   notify:

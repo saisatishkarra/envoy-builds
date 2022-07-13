@@ -18,7 +18,8 @@ jobs:
     - name: Print
       run: |
         echo ${{matrix.distro}}
-        sleep 3
+        exit 1
+
         
   notify:
     name: Slack Notification

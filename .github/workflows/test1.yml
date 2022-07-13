@@ -9,7 +9,7 @@ jobs:
         distro: [alpine, centos]
         include:
           - distro: darwin
-    runs-on: ubuntu-latesst
+    runs-on: ubuntu-latest
     continue-on-error: true
     steps:
 

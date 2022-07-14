@@ -17,6 +17,7 @@ jobs:
       # This will speed up the first run to populate cache for 3 distros in 3 compilation moodes
       # Also reduce cache poisioning
       max-parallel: 9
+      fail-fast: false
       matrix:
         distro: [alpine, centos, darwin]
         arch: [amd64]

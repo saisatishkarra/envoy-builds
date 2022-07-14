@@ -31,16 +31,16 @@ jobs:
             arch: amd64
             bazel_compile_mode: dbg
             bazel_compile_options: "--define boringssl=fips"
-          - distro: centos
-            arch: amd64
-            bazel_compile_mode: opt
-            bazel_compile_options: "--define boringssl=fips"
-          - distro: centos
-            arch: amd64
-            bazel_compile_mode: dbg
-            bazel_compile_options: "--define boringssl=fips"
+          # - distro: centos
+          #   arch: amd64
+          #   bazel_compile_mode: opt
+          #   bazel_compile_options: "--define boringssl=fips"
+          # - distro: centos
+          #   arch: amd64
+          #   bazel_compile_mode: dbg
+          #   bazel_compile_options: "--define boringssl=fips"
     runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
-    continue-on-error: true
+    continue-on-error: false
     steps:
 
     - name: Maximize build space
@@ -70,7 +70,6 @@ jobs:
         brew install coreutils automake ninja clang-format
         
         sudo rm -rf /Library/Developer/CommandLineTools
-        softwareupdate --all --install --force
         sudo xcode-select --install
         # https://github.com/actions/runner/issues/1456#issue-1042407558
         HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask docker
@@ -78,14 +77,10 @@ jobs:
         open -a /Applications/Docker.app --args --unattended --accept-license
         echo "We are waiting for Docker to be up and running. It can take over 2 minutes..."
         while ! /Applications/Docker.app/Contents/Resources/bin/docker info &>/dev/null; do sleep 1; done
-    
-    - name: Print System stats
-      run: |
-        echo "Free space:"
-        df -h
 
     - uses: actions/checkout@v3
 
+    # BAZEL_REMOTE_MAX_SIZE is specified in units of GiB
     - name: Run Bazel Cache server
       run: |
         CONTAINER_ID=$(docker run -dt \
@@ -97,6 +92,7 @@ jobs:
           -e BAZEL_REMOTE_ACCESS_LOG_LEVEL=all \
           -e BAZEL_REMOTE_S3_ENDPOINT=s3.us-east-2.amazonaws.com \
           -e BAZEL_REMOTE_DIR=/data \
+          -e BAZEL_REMOTE_MAX_SIZE=10 \
           -e BAZEL_REMOTE_S3_PREFIX=${{ github.event.inputs.s3CachePrefix }}/${{matrix.bazel_compile_mode}}/${{matrix.distro}}-${{matrix.arch}} \
           -p 9092:9092 \
           -p 8080:8080 \
@@ -125,6 +121,13 @@ jobs:
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
         BAZEL_BUILD_EXTRA_OPTIONS: >-
           --discard_analysis_cache 
+          --experimental_repository_cache_hardlinks
+          --experimental_enable_docker_sandbox 
+          --experimental_reuse_sandbox_directories
+          --experimental_remote_merkle_tree_cache
+          --local_cpu_resources=HOST_CPUS*.8
+          --local_ram_resources=HOST_RAM*.8
+          --experimental_remote_cache_async
           --nostamp 
           --nouse_action_cache
           --remote_cache=http://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
@@ -137,7 +140,7 @@ jobs:
     - name: Zip artifact
       run: |
         if [[ -f build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{matrix.distro}} ]]; then  
-          tar -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{matrix.distro}}-${{env.BAZEL_COMPILATION_MODE}}${{env.ARTIFACT_EXT}}.tar.gz build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy/envoy-${{matrix.distro}}
+          tar -C build/artifacts-${{env.GOOS}}-${{env.GOARCH}}/envoy -czvf envoy-${{env.GOOS}}-${{matrix.arch}}-${{env.ENVOY_TAG}}-${{matrix.distro}}-${{env.BAZEL_COMPILATION_MODE}}${{env.ARTIFACT_EXT}}.tar.gz .
         fi
       env:
         GOOS: ${{ matrix.distro != 'darwin' && 'linux' || matrix.distro }}

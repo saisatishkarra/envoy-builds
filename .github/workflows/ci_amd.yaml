@@ -125,7 +125,6 @@ jobs:
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
         BAZEL_BUILD_EXTRA_OPTIONS: >-
           --profile=/tmp/profile.gz
-          --dump=text
           --discard_analysis_cache 
           --experimental_repository_cache_hardlinks
           --experimental_remote_merkle_tree_cache

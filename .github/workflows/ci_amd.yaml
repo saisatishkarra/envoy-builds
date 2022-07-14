@@ -41,7 +41,7 @@ jobs:
           #   bazel_compile_mode: dbg
           #   bazel_compile_options: "--define boringssl=fips"
     runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
-    continue-on-error: true
+    continue-on-error: false
     steps:
 
     - name: Maximize build space

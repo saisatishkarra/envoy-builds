@@ -111,6 +111,10 @@ jobs:
         # Disable cache upload to avoid cache poisioning of shared cache / distro
         BAZEL_CACHE_MODE:  ${{ matrix.bazel_compile_options != '' && '--noremote_upload_local_results' || '--remote_upload_local_results' }}
 
+    # --experimental_enable_docker_sandbox 
+    # --experimental_reuse_sandbox_directories
+    # --local_cpu_resources=HOST_CPUS*.8
+    # --local_ram_resources=HOST_RAM*.8
     - name: Build envoy
       run: make build/envoy
       env:
@@ -120,13 +124,11 @@ jobs:
         BUILD_ENVOY_FROM_SOURCES: true
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
         BAZEL_BUILD_EXTRA_OPTIONS: >-
+          --profile=/tmp/profile.gz
+          --dump=text
           --discard_analysis_cache 
           --experimental_repository_cache_hardlinks
-          --experimental_enable_docker_sandbox 
-          --experimental_reuse_sandbox_directories
           --experimental_remote_merkle_tree_cache
-          --local_cpu_resources=HOST_CPUS*.8
-          --local_ram_resources=HOST_RAM*.8
           --experimental_remote_cache_async
           --nostamp 
           --nouse_action_cache

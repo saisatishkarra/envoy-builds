@@ -8,7 +8,8 @@ set -x
 
 echo "Building Envoy for Linux"
 
-mkdir -p "$(dirname "${BINARY_PATH}")"
+OUT_DIR=$(dirname "${BINARY_PATH}")
+mkdir -p "${OUT_DIR}"
 
 SOURCE_DIR="${SOURCE_DIR}" "${WORK_DIR:-.}/tools/envoy/fetch_sources.sh"
 CONTRIB_ENABLED_MATRIX_SCRIPT=$(realpath "${WORK_DIR:-.}/tools/envoy/contrib_enabled_matrix.py")
@@ -41,6 +42,7 @@ DOCKER_BUILD_OPTIONS=(
 )
 
 echo "SOURCE_DIR=${SOURCE_DIR}"
+echo "OUT_DIR=${OUT_DIR}"
 echo "BINARY_PATH=${BINARY_PATH}"
 echo "BAZEL_OPTIONS:${BAZEL_BUILD_OPTIONS[@]}"
 echo "BAZEL_BUILD_CMD=${BUILD_CMD}"
@@ -58,4 +60,5 @@ docker image inspect "${LOCAL_BUILD_IMAGE}"
 # copy out the binary
 id=$(docker create "${LOCAL_BUILD_IMAGE}")
 docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
+docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
 docker rm -v "$id"

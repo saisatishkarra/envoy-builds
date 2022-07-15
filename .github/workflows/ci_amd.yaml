@@ -115,6 +115,9 @@ jobs:
     # --experimental_reuse_sandbox_directories
     # --local_cpu_resources=HOST_CPUS*.8
     # --local_ram_resources=HOST_RAM*.8
+    # --experimental_repository_cache_hardlinks
+    # --experimental_remote_merkle_tree_cache
+    # --experimental_remote_cache_async
     - name: Build envoy
       run: make build/envoy
       env:
@@ -125,10 +128,7 @@ jobs:
         ENVOY_TAG: ${{ github.event.inputs.envoyTag }}
         BAZEL_BUILD_EXTRA_OPTIONS: >-
           --profile=/tmp/profile.gz
-          --discard_analysis_cache 
-          --experimental_repository_cache_hardlinks
-          --experimental_remote_merkle_tree_cache
-          --experimental_remote_cache_async
+          --discard_analysis_cache
           --nostamp 
           --nouse_action_cache
           --remote_cache=http://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080

@@ -17,6 +17,7 @@ jobs:
       # This will speed up the first run to populate cache for 3 distros in 3 compilation moodes
       # Also reduce cache poisioning
       max-parallel: 9
+      fail-fast: false
       matrix:
         distro: [alpine, centos, darwin]
         arch: [amd64]
@@ -159,13 +160,26 @@ jobs:
           envoy-*.tar.gz
   
   collect:
-    needs: build
-    runs-on: ubuntu-latest
+    name: Slack Notification
     if: ${{ always() }}
+    runs-on: ubuntu-latest
+    needs: build
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/download-artifact@v3
+      - name: Get aggregate Workflow status
+        uses: technote-space/workflow-conclusion-action@v3
+
+      - name: Send notification
+        uses: edge/simple-slack-notify@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          path: |
-            envoy-*.tar.gz
+          status: ${{ env.WORKFLOW_CONCLUSION }}
+          success_text: '<${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}|${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER})> workflow completed successfully :woohoo-homer:'
+          failure_text: '<${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}|${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER})> workflow failed :blob_fire:'
+          cancelled_text: '<${env.GITHUB_SERVER_URL}/${env.GITHUB_REPOSITORY}/actions/runs/${env.GITHUB_RUN_ID}|${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER})> workflow cancelled :x:'
+
+      # - name: Set job status
+      #   if: ${{ env.WORKFLOW_CONCLUSION == 'failure' || env.WORKFLOW_CONCLUSION == 'cancelled' }}
+      #   run: exit 1
+          
         

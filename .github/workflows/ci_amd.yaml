@@ -54,7 +54,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
-        releaseNameRegEx: "v${{steps.parse_current_envoy.outputs.major}}.${{steps.parse_current_envoy.outputs.minor}}*"
+        releaseNameRegEx: "v${{steps.parse_current_envoy.outputs.major}}.${{steps.parse_current_envoy.outputs.minor}}.*"
         draft: false
         prerelease: false
         doNotFailIfNotFound: true  # If not found, returns empty release id in outputs
@@ -74,7 +74,7 @@ jobs:
         echo "previous release name: ${{ steps.previous_envoy_release.outputs.name}}"
         echo "previous release tag: ${{ steps.previous_envoy_release.outputs.tag_name}}"
         echo "previous release createdAt: ${{ steps.previous_envoy_release.outputs.created_at}}"
-        if [[ "${{steps.parse_current_envoy.outputs.patch}}" <= "${{steps.previous_envoy_release.outputs.patch}}" ]]; then
+        if [[ "${{steps.parse_current_envoy.outputs.patch}}" <= "${{steps.parse_previous_envoy.outputs.patch}}" ]]; then
           echo "::set-output name=isNewRlease::false"
         fi
 
@@ -246,22 +246,20 @@ jobs:
           envoy-*.tar.gz
 
   publish:
-    needs: [metadata, build]
+    needs: [metadata]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Create Tag
         id: tag_version
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: rickstaa/action-create-tag@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
           commit_sha: ${{github.sha}}
-          custom_tag: ${{needs.metadata.outputs.releaseTag}}
-          dry_run: false
+          tag: ${{needs.metadata.outputs.releaseTag}}
       - uses: ncipollo/release-action@v1
         with:
-          tag: ${{steps.tag_version.outputs.new_tag}}
+          tag: ${{needs.metadata.outputs.releaseTag}}
           artifacts: "envoy-*.tar.gz"
           artifactErrorsFailBuild: false
           allowUpdates: true
@@ -275,9 +273,9 @@ jobs:
           
   notify:
     name: Slack Notification
+    needs: publish
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: build
     steps:
       - name: Get aggregate Workflow status
         uses: technote-space/workflow-conclusion-action@v3

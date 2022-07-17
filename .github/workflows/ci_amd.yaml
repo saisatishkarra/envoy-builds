@@ -157,10 +157,36 @@ jobs:
         name: artifacts
         path: |
           envoy-*.tar.gz
-  
-  collect:
-    needs: build
+
+  publish:
+    needs: [metadata, build]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create Tag
+        id: tag_version
+        uses: rickstaa/action-create-tag@v1
+        with:
+          commit_sha: ${{github.sha}}
+          tag: ${{needs.metadata.outputs.releaseTag}}
+      - uses: ncipollo/release-action@v1
+        with:
+          tag: ${{needs.metadata.outputs.releaseTag}}
+          artifacts: "envoy-*.tar.gz"
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+          replacesArtifacts: true
+          omitNameDuringUpdate: true
+          omitBodyDuringUpdate: true
+          generateReleaseNotes: true
+          body: |
+            "Release Envoy Tag: ${{needs.metadata.outputs.releaseTag}}"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+  notify:
+    name: Slack Notification
+    needs: publish
     if: ${{ always() }}
     steps:
       - uses: actions/checkout@v2

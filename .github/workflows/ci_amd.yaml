@@ -246,7 +246,7 @@ jobs:
           envoy-*.tar.gz
 
   publish:
-    needs: [metadata]
+    needs: [metadata, build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
@@ -261,7 +261,7 @@ jobs:
         with:
           tag: ${{needs.metadata.outputs.releaseTag}}
           artifacts: "envoy-*.tar.gz"
-          artifactErrorsFailBuild: false
+          artifactErrorsFailBuild: true
           allowUpdates: true
           replacesArtifacts: true
           omitNameDuringUpdate: true

@@ -176,6 +176,7 @@ jobs:
           -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=${{secrets.AWS_BAZEL_CACHE_SECRET_KEY}} \
           -e BAZEL_REMOTE_S3_REGION=us-east-2 \
           -e BAZEL_REMOTE_ACCESS_LOG_LEVEL=all \
+          -e BAZEL_REMOTE_EXPERIMENTAL_REMOTE_ASSET_API=true \
           -e BAZEL_REMOTE_S3_ENDPOINT=s3.us-east-2.amazonaws.com \
           -e BAZEL_REMOTE_DIR=/data \
           -e BAZEL_REMOTE_MAX_SIZE=10 \

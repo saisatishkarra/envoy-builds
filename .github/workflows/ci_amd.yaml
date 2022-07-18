@@ -1,15 +1,22 @@
 name: CI_AMD
 on: 
+  schedule:
+    - cron: 0 5,15 */15,16 * *
   workflow_dispatch:
     inputs:
       envoyTag:
         description: 'envoy tag to build'
         type: string
         required: false
+      reBuild:
+        description: 'rebuild existing envoy tag'
+        type: boolean
+        default: false
       s3CachePrefix:
         description: 'envoy s3 cache prefix'
         type: string
         default: envoy
+
 jobs:
   metadata:
     runs-on: ubuntu-18.04
@@ -26,13 +33,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - uses: pozetroninc/github-action-get-latest-release@master
+      id: envoyproxy_latest_release
+      with:
+        owner: envoyproxy
+        repo: envoy
+        excludes: prerelease, draft
+
     - name: Set Envoy Tag
       id: current_envoy
       if: ${{ github.event_name == 'schedule' || github.event.inputs.envoyTag != ''  }}
       run: |
         if [[ ${{github.event_name}} == 'schedule' ]]; then
-          # echo "YTB. Fetch upstream envoy tag and set output"
-          echo "::set-output name=envoyTag::v1.22.2"
+          echo "::set-output name=envoyTag::${{steps.envoyproxy_latest_release.outputs.release}}"
         elif [[ ${{github.event_name}} == 'workflow_dispatch' ]] && [[ ! -z ${{github.event.inputs.envoyTag}} ]]; then
           echo "::set-output name=envoyTag::${{github.event.inputs.envoyTag}}"
         fi
@@ -54,7 +67,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
-        releaseNameRegEx: "v${{steps.parse_current_envoy.outputs.major}}.${{steps.parse_current_envoy.outputs.minor}}.*"
+        releaseNameRegEx: "${{steps.parse_current_envoy.outputs.major}}.${{steps.parse_current_envoy.outputs.minor}}.*"
         draft: false
         prerelease: false
         doNotFailIfNotFound: true  # If not found, returns empty release id in outputs
@@ -74,9 +87,18 @@ jobs:
         echo "previous release name: ${{ steps.previous_envoy_release.outputs.name}}"
         echo "previous release tag: ${{ steps.previous_envoy_release.outputs.tag_name}}"
         echo "previous release createdAt: ${{ steps.previous_envoy_release.outputs.created_at}}"
-        if [[ "${{steps.parse_current_envoy.outputs.patch}}" <= "${{steps.parse_previous_envoy.outputs.patch}}" ]]; then
+        if [[ "${{steps.parse_current_envoy.outputs.patch}}" -le "${{steps.parse_previous_envoy.outputs.patch}}" ]]; then
           echo "::set-output name=isNewRlease::false"
         fi
+
+    - name: Exit Early
+      if: ${{steps.previous_envoy_release.outputs.id != '' && github.event.inputs.rebuild == 'false' }}
+      id: exit
+      run: |
+        msg="Found existing release: ${{steps.previous_envoy_release.outputs.name}} and Rebuild set to: ${{github.event.inputs.rebuild}}"
+        echo "::set-output name=exitMsg=$(echo $msg)"
+        echo "::notice file=ci_amd.yaml,line=94::$msg"
+        exit 1
 
     - name: Set Build Metadata
       id: metadata
@@ -176,6 +198,7 @@ jobs:
           -e BAZEL_REMOTE_S3_SECRET_ACCESS_KEY=${{secrets.AWS_BAZEL_CACHE_SECRET_KEY}} \
           -e BAZEL_REMOTE_S3_REGION=us-east-2 \
           -e BAZEL_REMOTE_ACCESS_LOG_LEVEL=all \
+          -e BAZEL_REMOTE_EXPERIMENTAL_REMOTE_ASSET_API=true \
           -e BAZEL_REMOTE_S3_ENDPOINT=s3.us-east-2.amazonaws.com \
           -e BAZEL_REMOTE_DIR=/data \
           -e BAZEL_REMOTE_MAX_SIZE=10 \
@@ -218,7 +241,8 @@ jobs:
           --nostamp 
           --nouse_action_cache
           --remote_local_fallback
-          --remote_cache=http://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
+          --remote_cache=grpc://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:9092
+          --experimental_remote_downloader=grpc://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:9092
           ${{env.BAZEL_CACHE_MODE}}
           ${{matrix.bazel_compile_options}}
         BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}
@@ -257,6 +281,7 @@ jobs:
         with:
           commit_sha: ${{github.sha}}
           tag: ${{needs.metadata.outputs.releaseTag}}
+          force_push_tag: true
       - uses: ncipollo/release-action@v1
         with:
           tag: ${{needs.metadata.outputs.releaseTag}}
@@ -268,12 +293,11 @@ jobs:
           omitBodyDuringUpdate: true
           generateReleaseNotes: true
           body: |
-            "Release Envoy Tag: ${{needs.metadata.outputs.releaseTag}}"
+            Release Envoy Tag: ${{needs.metadata.outputs.releaseTag}}
           token: ${{ secrets.GITHUB_TOKEN }}
           
   notify:
     name: Slack Notification
-    needs: publish
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

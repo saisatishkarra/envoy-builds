@@ -74,7 +74,7 @@ jobs:
         echo "previous release name: ${{ steps.previous_envoy_release.outputs.name}}"
         echo "previous release tag: ${{ steps.previous_envoy_release.outputs.tag_name}}"
         echo "previous release createdAt: ${{ steps.previous_envoy_release.outputs.created_at}}"
-        if [[ "${{steps.parse_current_envoy.outputs.patch}}" <= "${{steps.parse_previous_envoy.outputs.patch}}" ]]; then
+        if [[ "${{steps.parse_current_envoy.outputs.patch}}" -le "${{steps.parse_previous_envoy.outputs.patch}}" ]]; then
           echo "::set-output name=isNewRlease::false"
         fi
 

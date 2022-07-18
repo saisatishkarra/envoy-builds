@@ -54,7 +54,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ github.token }}
       with:
-        releaseNameRegEx: "v${{steps.parse_current_envoy.outputs.major}}.${{steps.parse_current_envoy.outputs.minor}}.*"
+        releaseNameRegEx: "${{steps.parse_current_envoy.outputs.major}}.${{steps.parse_current_envoy.outputs.minor}}.*"
         draft: false
         prerelease: false
         doNotFailIfNotFound: true  # If not found, returns empty release id in outputs

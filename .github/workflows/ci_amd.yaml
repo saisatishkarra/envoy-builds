@@ -271,7 +271,7 @@ jobs:
           omitBodyDuringUpdate: true
           generateReleaseNotes: true
           body: |
-            "Release Envoy Tag: ${{needs.metadata.outputs.releaseTag}}"
+            Release Envoy Tag: ${{needs.metadata.outputs.releaseTag}}
           token: ${{ secrets.GITHUB_TOKEN }}
           
   notify:

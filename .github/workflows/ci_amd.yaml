@@ -1,15 +1,22 @@
 name: CI_AMD
 on: 
+  schedule:
+    - cron: 0 5,15 */15,16 * *
   workflow_dispatch:
     inputs:
       envoyTag:
         description: 'envoy tag to build'
         type: string
         required: false
+      reBuild:
+        description: 'rebuild existing envoy tag'
+        type: boolean
+        default: false
       s3CachePrefix:
         description: 'envoy s3 cache prefix'
         type: string
         default: envoy
+
 jobs:
   metadata:
     runs-on: ubuntu-18.04
@@ -26,13 +33,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - uses: pozetroninc/github-action-get-latest-release@master
+      id: envoyproxy_latest_release
+      with:
+        owner: envoyproxy
+        repo: envoy
+        excludes: prerelease, draft
+
     - name: Set Envoy Tag
       id: current_envoy
       if: ${{ github.event_name == 'schedule' || github.event.inputs.envoyTag != ''  }}
       run: |
         if [[ ${{github.event_name}} == 'schedule' ]]; then
-          # echo "YTB. Fetch upstream envoy tag and set output"
-          echo "::set-output name=envoyTag::v1.22.2"
+          echo "::set-output name=envoyTag::${{steps.envoyproxy_latest_release.outputs.release}}"
         elif [[ ${{github.event_name}} == 'workflow_dispatch' ]] && [[ ! -z ${{github.event.inputs.envoyTag}} ]]; then
           echo "::set-output name=envoyTag::${{github.event.inputs.envoyTag}}"
         fi
@@ -77,6 +90,15 @@ jobs:
         if [[ "${{steps.parse_current_envoy.outputs.patch}}" -le "${{steps.parse_previous_envoy.outputs.patch}}" ]]; then
           echo "::set-output name=isNewRlease::false"
         fi
+
+    - name: Exit Early
+      if: ${{steps.previous_envoy_release.outputs.id != '' && github.event.inputs.rebuild == 'false' }}
+      id: exit
+      run: |
+        msg="Found existing release: ${{steps.previous_envoy_release.outputs.name}} and Rebuild set to: ${{github.event.inputs.rebuild}}"
+        echo "::set-output name=exitMsg=$(echo $msg)"
+        echo "::notice file=ci_amd.yaml,line=94::$msg"
+        exit 1
 
     - name: Set Build Metadata
       id: metadata
@@ -276,7 +298,6 @@ jobs:
           
   notify:
     name: Slack Notification
-    needs: publish
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

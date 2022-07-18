@@ -219,8 +219,8 @@ jobs:
           --nostamp 
           --nouse_action_cache
           --remote_local_fallback
-          --remote_cache=grpc://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
-          --experimental_remote_downloader=grpc://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:8080
+          --remote_cache=grpc://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:9092
+          --experimental_remote_downloader=grpc://${{env.REMOTE_CACHE_SEVER_HOSTNAME}}:9092
           ${{env.BAZEL_CACHE_MODE}}
           ${{matrix.bazel_compile_options}}
         BAZEL_COMPILATION_MODE: ${{matrix.bazel_compile_mode}}

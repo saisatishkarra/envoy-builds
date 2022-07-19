@@ -1,0 +1,12 @@
+ARG ENVOY_BUILD_IMAGE
+
+FROM $ENVOY_BUILD_IMAGE as base
+
+ARG BUILD_CMD
+
+WORKDIR /envoy-sources
+
+COPY . .
+
+RUN bash -c "$BUILD_CMD"
+

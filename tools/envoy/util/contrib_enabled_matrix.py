@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 #todo:
 # input contrib all extensions
@@ -6,8 +6,10 @@
 # Filter extensions to remove any extensions that are part of needed and not available as part of envoy tag
 # return disabled
 
+import os
+
 # file in format CONTRIB_EXTENSIONS = {...}
-exec(open('contrib/contrib_build_config.bzl').read())
+exec(open(os.environ['ENVOY_SOURCE_DIR']+'/contrib/contrib_build_config.bzl').read())
 
 enabled = [
     "envoy.filters.network.kafka_broker"

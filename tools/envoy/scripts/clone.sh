@@ -10,22 +10,21 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-source "$(dirname -- "${BASH_SOURCE[0]}")/../common.sh"
-
+echo $ENVOY_SOURCE_DIR
 # clone Envoy repo if not exists
-if [[ ! -d "${SOURCE_DIR}" ]]; then
-  mkdir -p "${SOURCE_DIR}"
+if [[ ! -d "${ENVOY_SOURCE_DIR}" ]]; then
+  mkdir -p "${ENVOY_SOURCE_DIR}"
   (
-    cd "${SOURCE_DIR}"
+    cd "${ENVOY_SOURCE_DIR}"
     git init .
     git remote add origin https://github.com/envoyproxy/envoy.git
   )
 else
   echo "Envoy source directory already exists, just fetching"
-  pushd "${SOURCE_DIR}" && git fetch --all && popd
+  pushd "${ENVOY_SOURCE_DIR}" && git fetch --all && popd
 fi
 
-pushd "${SOURCE_DIR}"
+pushd "${ENVOY_SOURCE_DIR}"
 
 git fetch origin --depth=1 "${ENVOY_TAG}"
 git reset --hard FETCH_HEAD

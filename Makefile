@@ -1,66 +1,175 @@
-WORK_DIR ?= .
+SUPPORTED_OS:= linux darwin windows
+SUPPORTED_LINUX_DISTROS:= alpine centos
 
-GOOS ?= linux
-GOARCH ?= amd64
-
-BUILD_ENVOY_FROM_SOURCES ?= false
-
-ENVOY_TAG ?= v1.22.0 # commit hash or git tag
-# Remember to update pkg/version/compatibility.go
-ENVOY_VERSION = $(shell ${WORK_DIR}/tools/envoy/version.sh ${ENVOY_TAG})
-
-REMOTE_CACHE_SEVER_HOSTNAME ?= $(REMOTE_CACHE_SEVER_HOSTNAME)
-REMOTE_CACHE_SEVER_IP ?= $(REMOTE_CACHE_SEVER_IP)
-
-ifeq ($(GOOS),linux)
-	ENVOY_DISTRO ?= alpine
+ifndef TARGETOS
+	$(error TARGETOS is required)
 endif
-ENVOY_DISTRO ?= $(GOOS)
 
-ifeq ($(ENVOY_DISTRO),centos)
-	BUILD_ENVOY_SCRIPT = $(WORK_DIR)/tools/envoy/build_centos.sh
+ifndef TARGETARCH
+	$(error TARGETARCH is required)
 endif
-BUILD_ENVOY_SCRIPT ?= $(WORK_DIR)/tools/envoy/build_$(GOOS).sh
 
-SOURCE_DIR ?= ${TMPDIR}envoy-sources
+ifndef ENVOY_TAG
+	$(error ENVOY_TAG (vX.Y.Z) is required)
+endif
+
+ifneq ($(TARGETOS), $(filter $(TARGETOS), $(SUPPORTED_OS)))
+	$(error TARGETOS must be one of $(SUPPORTED_OS)) 
+endif
+		
+ifeq ($(TARGETOS), linux)
+	ifndef DISTRO
+		$(error DISTRO is required. One of:$(SUPPORTED_LINUX_DISTROS))
+	endif
+	ifeq ($(DISTRO), $(filter $(DISTRO),$(SUPPORTED_LINUX_DISTROS)))
+		ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)	
+	endif
+else ifeq ($(TARGETOS), darwin)
+# Use alpine as envoy build tools base for cross compiling darwin	
+	DISTRO=$(TARGETOS)
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
+else 
+# Windows
+	DISTRO=$(TARGETOS)
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)
+endif
+
+WORK_DIR?= $(shell pwd)
+ENVOY_BUILD_TOOLS_DIR?=${WORK_DIR}/tools/envoy
+# Envoy buils tools image is not provided for darwin. Needs to be overriden for darwin
+VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/$(ENVOY_TAG)/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
+ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
+ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
+BUILD_ENVOY_FROM_SOURCES?=false
 ifndef TMPDIR
-	SOURCE_DIR ?= /tmp/envoy-sources
+	ENVOY_SOURCE_DIR=/tmp/envoy
+else
+	ENVOY_SOURCE_DIR=${TMPDIR}envoy
 endif
 
-# Target 'build/envoy' allows to put Envoy binary under the build/artifacts-$GOOS-$GOARCH/envoy directory.
+REGISTRY?=local
+REPO?=envoy-builds
+IMAGENAME=$(REGISTRY)/$(REPO) 
+IMAGE?=$(REGISTRY)/$(REPO):${ENVOY_TAG}-${DISTRO}
+BAZEL_BUILD_EXTRA_OPTIONS?=""
+
+# DOCKER_BUILD_EXTRA_OPTIONS=${DOCKER_BUILD_EXTRA_OPTIONS:-""}
+# read -ra DOCKER_BUILD_EXTRA_OPTIONS <<< "${DOCKER_BUILD_EXTRA_OPTIONS}"
+# export DOCKER_BUILD_EXTRA_OPTIONS=("${DOCKER_BUILD_EXTRA_OPTIONS[@]+"${DOCKER_BUILD_EXTRA_OPTIONS[@]}"}")
+
+
+#BUILD_ENVOY_DEPS_SCRIPT:=$(WORK_DIR)/tools/envoy/build_deps.sh
+
+
+# Target 'build/envoy' allows to put Envoy binary under the build/artifacts-$TARGETOS-$TARGETARCH/envoy directory.
 # Depending on the flag BUILD_ENVOY_FROM_SOURCES this target either fetches Envoy from binary registry or
-# builds from sources. It's possible to build binaries for darwin, linux and centos by specifying GOOS
+# builds from sources. It's possible to build binaries for darwin, linux and centos by specifying TARGETOS
 # and ENVOY_DISTRO variables. Envoy version could be specified by ENVOY_TAG that accepts git tag or commit
 # hash values.
-.PHONY: build/envoy
-build/envoy:
-	GOOS=${GOOS} \
-	GOARCH=${GOARCH} \
-	ENVOY_DISTRO=${ENVOY_DISTRO} \
-	ENVOY_VERSION=${ENVOY_VERSION} \
-	$(MAKE) build/artifacts-${GOOS}-${GOARCH}/envoy/envoy-${ENVOY_DISTRO}
 
-# .PHONY: build/artifacts-linux-amd64/envoy/envoy
-# build/artifacts-linux-amd64/envoy/envoy:
-# 	GOOS=linux GOARCH=amd64 $(MAKE) build/envoy
+.PHONY: inspect
+inspect:
+	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
+	ENVOY_SOURCE_DIR=$(ENVOY_SOURCE_DIR) \
+	BUILD_ENVOY_FROM_SOURCES=$(BUILD_ENVOY_FROM_SOURCES) \
+	ENVOY_TAG="${ENVOY_TAG}" \
+	ENVOY_VERSION_TRIMMED=$(ENVOY_VERSION_TRIMMED) \
+	DISTRO=$(DISTRO) \
+	FLAVOUR=$(FLAVOUR) \
+	DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+	$(ENVOY_BUILD_TOOLS_DIR)/scripts/inspect.sh
 
-# .PHONY: build/artifacts-linux-arm64/envoy/envoy
-# build/artifacts-linux-arm64/envoy/envoy:
-# 	GOOS=linux GOARCH=arm64 $(MAKE) build/envoy
+.PHONY: clone
+clone:
+	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
+	ENVOY_SOURCE_DIR="${ENVOY_SOURCE_DIR}" \
+	ENVOY_TAG="${ENVOY_TAG}" \
+	"${ENVOY_BUILD_TOOLS_DIR}/scripts/clone.sh"
 
-build/artifacts-${GOOS}-${GOARCH}/envoy/envoy-${ENVOY_DISTRO}:
-ifeq ($(BUILD_ENVOY_FROM_SOURCES),true)
-	ENVOY_TAG=${ENVOY_TAG} \
-	SOURCE_DIR=${SOURCE_DIR} \
-	WORK_DIR=${WORK_DIR} \
-	BINARY_PATH=$@ $(BUILD_ENVOY_SCRIPT)
-else
-	ENVOY_VERSION=${ENVOY_VERSION} \
-	ENVOY_DISTRO=${ENVOY_DISTRO} \
-	BINARY_PATH=$@ ${WORK_DIR}/tools/envoy/fetch.sh
-endif
+# .PHONY: init
+# init: clone 
+# 	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
+# 	ENVOY_SOURCE_DIR="${ENVOY_SOURCE_DIR}" \
+# 	"${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/init.sh"
 
-.PHONY: clean/envoy
-clean/envoy:
-	rm -rf ${SOURCE_DIR}
-	rm -rf build/artifacts-${GOOS}-${GOARCH}/envoy/
+.PHONY: fetch_envoy_deps
+fetch_envoy_deps: clone
+	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
+	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
+	ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output \
+	${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/prefetch.sh
+
+.PHONY: clean_envoy
+clean_envoy: ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
+clean_envoy:
+	ENVOY_SOURCE_DIR=$(ENVOY_SOURCE_DIR) \
+	rm -rf ${ENVOY_SOURCE_DIR}
+	rm -rf build/envoy
+	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}
+	docker system prune
+
+.PHONY: build_envoy_image
+
+# Figure out a way to pass DOCKER_BUILD_EXTRA_OPTIONS to buildkit
+# --add-host # network #s3 cache container
+# Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
+# Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
+# BAZEL_BUILD_EXTRA_OPTIONS
+
+build_envoy_image:
+	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
+	ENVOY_TAG="${ENVOY_TAG}" \
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
+	DISTRO="${DISTRO}" \
+	docker buildx build \
+		-f Dockerfile \
+		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
+		--build-arg ENVOY_TAG=${ENVOY_TAG} \
+		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
+		--build-arg DISTRO=${DISTRO} \
+		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+		--platform=${TARGETOS}/${TARGETARCH} \
+		--no-cache \
+		--load \
+		-t ${IMAGE} .
+
+.PHONY: inspect_envoy_image
+inspect_envoy_image: build_envoy_image
+	docker image inspect "${IMAGE}"
+	
+
+
+#docker run -t "${IMAGE}" bash -c "xx-info env && uname -a"
+# docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
+# docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
+# docker rm -v "$id"
+
+
+
+# .PHONY: build_envoy
+# build_envoy: inspect
+# 	$(MAKE) build/envoy/artifacts/${TARGETOS}/envoy-${ENVOY_VERSION_TRIMMED}-${DISTRO}-${TARGETARCH}
+
+# build/envoy/artifacts/${TARGETOS}/envoy-${ENVOY_VERSION_TRIMMED}-${DISTRO}-${TARGETARCH}:
+# 	DISTRO=$(DISTRO) \
+# 	ENVOY_SOURCE_DIR=$(ENVOY_SOURCE_DIR) \
+# 	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
+# 	BUILD_ENVOY_FROM_SOURCES=$(BUILD_ENVOY_FROM_SOURCES) \
+# 	ENVOY_VERSION_TRIMMED=$(ENVOY_VERSION_TRIMMED) \
+# 	DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
+# 	ifeq ($(BUILD_ENVOY_FROM_SOURCES),true)
+# 		$(MAKE) fetch_envoy_deps
+# 	else
+# 		BINARY_PATH=$@ $(ENVOY_BUILD_TOOLS_DIR)/scripts/fetch_prebuilt_binary.sh
+# 	endif
+
+
+
+#
+# docker image inspect "${LOCAL_BUILD_IMAGE}"
+
+# # copy out the binary
+# id=$(docker create "${LOCAL_BUILD_IMAGE}")
+# docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
+# docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
+# docker rm -v "$id"

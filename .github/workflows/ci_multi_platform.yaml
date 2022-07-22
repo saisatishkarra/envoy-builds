@@ -1,0 +1,114 @@
+name: ci_multi_platform
+on: 
+  workflow_dispatch:
+    inputs:
+      envoyTag:
+        description: 'envoy tag to build'
+        type: string
+        required: true
+      s3CachePrefix:
+        description: 'envoy s3 cache prefix'
+        type: string
+        default: envoy
+      use-cache:
+        description: 'use docker buildx cache'
+        type: boolean
+        default: true
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    outputs:
+      ebToolsTag: "${{steps.eb_tools_metadata.outputs.ebToolsTag}}"
+    steps:
+      - name: Set envoyproxy-build-tools metadata
+        id: eb_tools_metadata
+        run: |
+          VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/${{github.event.inputs.envoyTag}}/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
+          ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
+          echo "::set-output name=ebToolsTag::${ENVOY_BUILD_TOOLS_TAG}"
+
+  build:
+    needs: metadata
+    env:
+      BAZEL_BUILD_EXTRA_OPTIONS: >-
+        --discard_analysis_cache 
+        --nostamp 
+        --nouse_action_cache
+        --io_nice_level=4
+        --distdir=path/to/directory
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [alpine, centos]
+        pltforrms: [linux/amd64, linux/arm64]
+        # exclude:
+        #   # CentOS image doesn't have bazel  / git instlled in path and is empty
+        #   # Issue: https://github.com/envoyproxy/envoy-build-tools/pull/154 (Still occurs on v1.22.2)
+        #   - distro: centos
+        #     arch: arm64
+        #   # How to perform virtualization between amd64 host aand arm64/aarch64 target?
+        #   - distro: darwin
+        #     arch: arm64  
+          
+
+        #mode: [fips, debug, stripped]
+        #include / exlcude combinations
+
+        allow_failure: [false]
+    runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
+    continue-on-error: ${{ matrix.allow_failure }}
+    steps:
+    
+    - name: Inspect
+      run: |
+        echo "Build Environment:"
+        echo "envoyTag: ${{github.event.inputs.envoyTag}}"
+        echo "envoyBuildToolsImg: envoyproxy/envoy-build-${{env.ebToolsImgBaseFlavour}}"
+        echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
+      env:
+        ebToolsImgBaseFlavour: ${{matrix.distro == 'alpine' && 'ubuntu' || 'centos'}} 
+      
+    - uses: actions/checkout@v3
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v2
+    
+    - uses: docker/setup-buildx-action@v2
+      id: buildx
+      with:
+        install: true
+    
+    - name: Build and push
+      uses: docker/build-push-action@v3
+      with:
+        push: false
+        load: true
+        no-cache: ${{github.event.inputs.use-cache}}
+        context: .
+        file: Dockerfile
+        build-args: |
+          ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
+          ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
+          ENVOY_TAG=${{env.envoyTag}}
+          DISTRO=${{env.distro}}
+        platforms: ${{matrix.platforms}}
+        target: envoy-build
+        tags: IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}
+      env:
+        ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || env.distro}} 
+        registry: kong
+        repo: envoy-builds
+        envoyTag: ${{github.event.inputs.envoyTag}}
+        distro: ${{matrix.distro}}   
+
+    - name: Inspect Image
+      run: |
+        IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}} \
+        make inspect_envoy_image
+      env:
+        registry: kong
+        repo: envoy-builds
+        envoyTag: ${{github.event.inputs.envoyTag}}
+        distro: ${{matrix.distro}} 

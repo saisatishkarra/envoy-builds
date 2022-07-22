@@ -9,7 +9,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-source "$(dirname -- "${BASH_SOURCE[0]}")/../common.sh"
+source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
 
 if [ $# -eq 0 ]; then
     echo "Usage: ./publish.sh path_to_envoy"

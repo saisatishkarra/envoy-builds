@@ -96,7 +96,7 @@ jobs:
         target: envoy-build
         tags: ${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}
       env:
-        ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || env.distro}} 
+        ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || matrix.distro}} 
         registry: kong
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}

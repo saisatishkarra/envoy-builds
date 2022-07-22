@@ -94,7 +94,7 @@ jobs:
           DISTRO=${{env.distro}}
         platforms: ${{matrix.platforms}}
         target: envoy-build
-        tags: IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}
+        tags: ${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}
       env:
         ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || env.distro}} 
         registry: kong

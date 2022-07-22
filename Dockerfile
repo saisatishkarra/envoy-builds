@@ -20,8 +20,8 @@ RUN wget -O /usr/local/bin/bazel \
 # add current context and checkout envoy proxy
 FROM --platform=$BUILDPLATFORM alpine:3.15.5 as base
 WORKDIR /app
-ENV ENVOY_BUILD_TOOLS_DIR=./envoy-builds/tools/envoy
-ENV ENVOY_SOURCE_DIR=./envoy
+ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
+ENV ENVOY_SOURCE_DIR=/app/envoy
 ENV ENVOY_TAG=$ENVOY_TAG
 ADD tools/envoy $ENVOY_BUILD_TOOLS_DIR
 RUN $ENVOY_BUILD_TOOLS_DIR/scripts/clone.sh
@@ -33,13 +33,13 @@ RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/prefetch.sh
 
 FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-ubuntu:$ENVOY_BUILD_TOOLS_TAG as envoy-build-deps-alpine
 WORKDIR /app/envoy
-COPY --from=deps ./envoy .
+COPY --from=deps /app/envoy .
 COPY --from=deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
 COPY --from=bazel-alpine /usr/local/bin/bazel /usr/local/bin/bazel
 
 FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-centos:$ENVOY_BUILD_TOOLS_TAG as envoy-build-deps-centos
 WORKDIR /app/envoy
-COPY --from=deps ./envoy .
+COPY --from=deps /app/envoy .
 COPY --from=deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
 COPY --from=bazel-alpine /usr/local/bin/bazel /usr/local/bin/bazel
 

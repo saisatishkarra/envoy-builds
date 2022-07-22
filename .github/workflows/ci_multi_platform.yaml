@@ -36,7 +36,6 @@ jobs:
         --nostamp 
         --nouse_action_cache
         --io_nice_level=4
-        --distdir=path/to/directory
     strategy:
       fail-fast: false
       matrix:

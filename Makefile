@@ -34,10 +34,10 @@ else
 endif
 
 WORK_DIR?= $(shell pwd)
-# Envoy buils tools image is not provided for darwin. Needs to be overriden for darwin
-ENVOY_BUILD_TOOLS_IMAGE?=envoyproxy/envoy-build-${ENVOY_BUILD_TOOLS_BASE_FLAVOUR}
 ENVOY_BUILD_TOOLS_DIR?=${WORK_DIR}/tools/envoy
+# Envoy buils tools image is not provided for darwin. Needs to be overriden for darwin
 VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/$(ENVOY_TAG)/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
+ENVOY_BUILD_TOOLS_IMAGE?=envoyproxy/envoy-build-${ENVOY_BUILD_TOOLS_BASE_FLAVOUR}
 ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
 ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
 BUILD_ENVOY_FROM_SOURCES?=false
@@ -116,16 +116,11 @@ clean_envoy:
 # BAZEL_BUILD_EXTRA_OPTIONS
 
 envoy_image:
-	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-	ENVOY_SOURCE_DIR="${ENVOY_SOURCE_DIR}" \
 	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
 	ENVOY_BUILD_TOOLS_IMAGE="${ENVOY_BUILD_TOOLS_IMAGE}" \
-	ENVOY_VERSION_TRIMMED="${ENVOY_VERSION_TRIMMED}" \
 	ENVOY_TAG="${ENVOY_TAG}" \
 	docker buildx build \
 		-f Dockerfile \
-		--build-arg ENVOY_BUILD_TOOLS_DIR=${ENVOY_BUILD_TOOLS_DIR} \
-		--build-arg ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
 		--build-arg ENVOY_BUILD_TOOLS_IMAGE=${ENVOY_BUILD_TOOLS_IMAGE} \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \

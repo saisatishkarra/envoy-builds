@@ -5,7 +5,8 @@ on:
       envoyTag:
         description: 'envoy tag to build'
         type: string
-        required: true
+        default: v1.22.2
+        required: false
       s3CachePrefix:
         description: 'envoy s3 cache prefix'
         type: string

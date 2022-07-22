@@ -8,9 +8,7 @@ set -x
 
 source ${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel_env/init.sh
 
-export BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c ${BAZEL_COMPILATION_MODE} ${BUILD_TARGET} "}
-
-export BAZEL_BUILD_OPTIONS=(
+BAZEL_BUILD_OPTIONS=(
     "--curses=no"
     "--verbose_failures"
     "--//contrib/vcl/source:enabled=false"
@@ -18,6 +16,9 @@ export BAZEL_BUILD_OPTIONS=(
 
 pushd "${ENVOY_SOURCE_DIR}"
 # Append contrib to build_target in build_cmd
-#export CONTRIB_ENABLED_ARGS=$(python3 "${CONTRIB_ENABLED_MATRIX_SCRIPT}")
+CONTRIB_ENABLED_ARGS=$(python3 "${CONTRIB_ENABLED_MATRIX_SCRIPT}")
+# Bazel build commandl Fix and Append: ${CONTRIB_ENABLED_ARGS}
+BUILD_CMD=${BUILD_CMD:-"bazel build ${BAZEL_BUILD_OPTIONS[@]} -c ${BAZEL_COMPILATION_MODE} ${BUILD_TARGET} ${CONTRIB_ENABLED_ARGS}"}
+echo "Build cmd: $BUILD_CMD"
 eval $BUILD_CMD
 popd

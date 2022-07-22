@@ -1,4 +1,4 @@
-name: CI_ARM
+name: ci_multi_platform
 on: 
   workflow_dispatch:
     inputs:
@@ -32,11 +32,12 @@ jobs:
   build:
     needs: metadata
     env:
-      BAZEL_DEFAULT_EXTRA_OPTIONS: >-
+      BAZEL_BUILD_EXTRA_OPTIONS: >-
         --discard_analysis_cache 
         --nostamp 
         --nouse_action_cache
         --io_nice_level=4
+        --distdir=path/to/directory
     strategy:
       fail-fast: false
       matrix:
@@ -88,28 +89,26 @@ jobs:
         context: .
         file: Dockerfile
         build-args: |
-          ENVOY_BUILD_TOOLS_IMAGE=envoyproxy/envoy-build-${{env.ebToolsImgBaseFlavour}}
           ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
-          ENVOY_TAG=${{github.event.inputs.envoyTag}}
+          ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
+          ENVOY_TAG=${{env.envoyTag}}
+          DISTRO=${{env.distro}}
         platforms: ${{matrix.platforms}}
-        tags: local/:latest
+        target: envoy-build
+        tags: IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}
       env:
-        ebToolsImgBaseFlavour: ${{matrix.distro == 'alpine' && 'ubuntu' || 'centos'}} 
+        ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || env.distro}} 
+        registry: kong
+        repo: envoy-builds
+        envoyTag: ${{github.event.inputs.envoyTag}}
+        distro: ${{matrix.distro}}   
 
-
-		--build-arg ENVOY_BUILD_TOOLS_IMAGE=${ENVOY_BUILD_TOOLS_IMAGE} \
-		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
-		--build-arg ENVOY_TAG=${ENVOY_TAG} \
-		--platform=${TARGETOS}/${TARGETARCH} \
-		--no-cache \
-		--load \
-		-t ${IMAGE} .
-    
-    - run: |
-        make envoy_container
+    - name: Inspect Image
+      run: |
+        IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}} \
+        make inspect_envoy_image
       env:
-        TARGETOS: linux 
-        TARGETARCH: ${{matrix.arch}} 
-        DISTRO: ${{matrix.distro}} 
-        ENVOY_TAG: v1.22.0 
-        BUILD_ENVOY_FROM_SOURCES: true
+        registry: kong
+        repo: envoy-builds
+        envoyTag: ${{github.event.inputs.envoyTag}}
+        distro: ${{matrix.distro}} 

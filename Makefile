@@ -22,22 +22,22 @@ ifeq ($(TARGETOS), linux)
 		$(error DISTRO is required. One of:$(SUPPORTED_LINUX_DISTROS))
 	endif
 	ifeq ($(DISTRO), $(filter $(DISTRO),$(SUPPORTED_LINUX_DISTROS)))
-		ifeq ($(DISTRO), alpine)
-			ENVOY_BUILD_TOOLS_BASE_FLAVOUR=ubuntu
-		else
-			ENVOY_BUILD_TOOLS_BASE_FLAVOUR=centos
-		endif
+		ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)	
 	endif
-else
+else ifeq ($(TARGETOS), darwin)
+# Use alpine as envoy build tools base for cross compiling darwin	
 	DISTRO=$(TARGETOS)
-	ENVOY_BUILD_TOOLS_BASE_FLAVOUR=$(TARGETOS)
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
+else 
+# Windows
+	DISTRO=$(TARGETOS)
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)
 endif
 
 WORK_DIR?= $(shell pwd)
 ENVOY_BUILD_TOOLS_DIR?=${WORK_DIR}/tools/envoy
 # Envoy buils tools image is not provided for darwin. Needs to be overriden for darwin
 VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/$(ENVOY_TAG)/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
-ENVOY_BUILD_TOOLS_IMAGE?=envoyproxy/envoy-build-${ENVOY_BUILD_TOOLS_BASE_FLAVOUR}
 ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
 ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
 BUILD_ENVOY_FROM_SOURCES?=false
@@ -50,7 +50,8 @@ endif
 REGISTRY?=local
 REPO?=envoy-builds
 IMAGENAME=$(REGISTRY)/$(REPO) 
-IMAGE=$(REGISTRY)/$(REPO):${ENVOY_VERSION_TRIMMED}-${TARGETOS}-${TARGETARCH}
+IMAGE?=$(REGISTRY)/$(REPO):${ENVOY_TAG}-${DISTRO}
+BAZEL_BUILD_EXTRA_OPTIONS?=""
 
 # DOCKER_BUILD_EXTRA_OPTIONS=${DOCKER_BUILD_EXTRA_OPTIONS:-""}
 # read -ra DOCKER_BUILD_EXTRA_OPTIONS <<< "${DOCKER_BUILD_EXTRA_OPTIONS}"
@@ -107,7 +108,7 @@ clean_envoy:
 	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}
 	docker system prune
 
-.PHONY: envoy_image
+.PHONY: build_envoy_image
 
 # Figure out a way to pass DOCKER_BUILD_EXTRA_OPTIONS to buildkit
 # --add-host # network #s3 cache container
@@ -115,26 +116,30 @@ clean_envoy:
 # Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
 # BAZEL_BUILD_EXTRA_OPTIONS
 
-envoy_image:
+build_envoy_image:
 	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
-	ENVOY_BUILD_TOOLS_IMAGE="${ENVOY_BUILD_TOOLS_IMAGE}" \
 	ENVOY_TAG="${ENVOY_TAG}" \
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
+	DISTRO="${DISTRO}" \
 	docker buildx build \
 		-f Dockerfile \
-		--build-arg ENVOY_BUILD_TOOLS_IMAGE=${ENVOY_BUILD_TOOLS_IMAGE} \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
+		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
+		--build-arg DISTRO=${DISTRO} \
+		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
 		--platform=${TARGETOS}/${TARGETARCH} \
 		--no-cache \
 		--load \
 		-t ${IMAGE} .
 
-envoy_container: envoy_image
+.PHONY: inspect_envoy_image
+inspect_envoy_image: build_envoy_image
 	docker image inspect "${IMAGE}"
-	docker run -t "${IMAGE}" bash -c "xx-info env && uname -a"
+	
 
 
-
+#docker run -t "${IMAGE}" bash -c "xx-info env && uname -a"
 # docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
 # docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
 # docker rm -v "$id"

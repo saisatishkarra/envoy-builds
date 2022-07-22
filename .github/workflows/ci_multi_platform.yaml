@@ -26,8 +26,7 @@ jobs:
         id: eb_tools_metadata
         run: |
           VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/${{github.event.inputs.envoyTag}}/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
-          ENVOY_BUILD_TOOLS_TAG="eval ${VERSION_CMD}"
-          echo "::set-output name=ebToolsTag::${ENVOY_BUILD_TOOLS_TAG}"
+          echo "::set-output name=ebToolsTag::$(eval "${VERSION_CMD})"
 
   build:
     needs: metadata

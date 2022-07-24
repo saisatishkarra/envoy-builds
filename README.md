@@ -38,3 +38,8 @@ When building from sources its still possible to specify OS:
 ```shell
 $ GOOS=linux ENVOY_TAG=bef18019d8fc33a4ed6aca3679aff2100241ac5e BUILD_ENVOY_FROM_SOURCES=true make build/envoy
 ```
+
+When building from sources using dockerfile:
+```shell
+$ TARGETOS=linux TARGETARCH=amd64 DISTRO=centos ENVOY_TAG=v1.22.0 TARGET=envoy-build BUILD_ENVOY_FROM_SOURCES=true make inspect_envoy_image
+```

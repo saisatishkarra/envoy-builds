@@ -11,10 +11,10 @@ on:
         description: 'envoy s3 cache prefix'
         type: string
         default: envoy
-      use-cache:
-        description: 'use docker buildx cache'
+      noBuildxCache:
+        description: 'Don't use docker buildx cache'
         type: boolean
-        default: true
+        default: false
 
 jobs:
   metadata:
@@ -28,6 +28,56 @@ jobs:
         run: |
           echo "::set-output name=ebToolsTag::$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/${{github.event.inputs.envoyTag}}/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#' | uniq)"
 
+  # Always prefetch bazel only for alpine
+  prefetch:
+    env:
+      ENVOY_DEPS_TAR: /tmp/envoy-deps.tar
+    needs: metadata
+    runs-on: 'ubuntu-latest'
+    strategy:
+      fail-fast: false
+      matrix:
+        allow_failure: [true]
+        distro: [alpine]
+    continue-on-error: true
+    steps:
+
+    - name: Inspect
+      run: |
+        echo "Build Environment:"
+        echo "envoyTag: ${{github.event.inputs.envoyTag}}"
+        echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
+      
+    - uses: actions/checkout@v3
+    
+    - uses: docker/setup-buildx-action@v2
+      id: buildx
+      with:
+        install: true
+
+    - name: Build Envoy Deps and export
+      uses: docker/build-push-action@v3
+      with:
+        context: .
+        file: Dockerfile
+        outputs: type=docker,dest=${{env.ENVOY_DEPS_TAR}}
+        no-cache: ${{github.event.inputs.noBuildxCache}}
+        build-args: |
+          ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
+          ENVOY_TAG=${{env.envoyTag}}
+          DISTRO=${{env.distro}}
+        target: envoy-deps
+        tags: envoy-deps
+      env:
+        envoyTag: ${{github.event.inputs.envoyTag}}
+        distro: ${{matrix.distro}}   
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+      name: envoy-deps
+      path: ${{env.ENVOY_DEPS_TAR}}
+
   build:
     needs: metadata
     env:
@@ -36,26 +86,16 @@ jobs:
         --nostamp 
         --nouse_action_cache
         --io_nice_level=4
+      ENVOY_DEPS_TAR: /tmp/envoy-deps.tar
     strategy:
       fail-fast: false
       matrix:
+        allow_failure: [false]
         distro: [alpine, centos]
         pltforrms: [linux/amd64, linux/arm64]
-        # exclude:
-        #   # CentOS image doesn't have bazel  / git instlled in path and is empty
-        #   # Issue: https://github.com/envoyproxy/envoy-build-tools/pull/154 (Still occurs on v1.22.2)
-        #   - distro: centos
-        #     arch: arm64
-        #   # How to perform virtualization between amd64 host aand arm64/aarch64 target?
-        #   - distro: darwin
-        #     arch: arm64  
-          
-
         #mode: [fips, debug, stripped]
         #include / exlcude combinations
-
-        allow_failure: [false]
-    runs-on: ${{ matrix.distro != 'darwin' && 'ubuntu-latest' || 'macos-latest' }}
+    runs-on: 'ubuntu-latest'
     continue-on-error: ${{ matrix.allow_failure }}
     steps:
     
@@ -63,11 +103,8 @@ jobs:
       run: |
         echo "Build Environment:"
         echo "envoyTag: ${{github.event.inputs.envoyTag}}"
-        echo "envoyBuildToolsImg: envoyproxy/envoy-build-${{env.ebToolsImgBaseFlavour}}"
         echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
-      env:
-        ebToolsImgBaseFlavour: ${{matrix.distro == 'alpine' && 'ubuntu' || 'centos'}} 
-      
+        
     - uses: actions/checkout@v3
 
     - name: Set up QEMU
@@ -78,12 +115,23 @@ jobs:
       with:
         install: true
     
+    - name: Download prefetched envoy deps 
+      uses: actions/download-artifact@v3
+      with:
+        name: envoy-deps
+        path: /tmp
+
+    - name: Load image
+      run: |
+        docker load --input ${{env.ENVOY_DEPS_TAR}}
+        docker image ls -a
+          
     - name: Build and push
       uses: docker/build-push-action@v3
       with:
         push: false
         load: true
-        no-cache: ${{github.event.inputs.use-cache}}
+        no-cache: ${{github.event.inputs.noBuildxCache}}
         context: .
         file: Dockerfile
         build-args: |
@@ -91,6 +139,8 @@ jobs:
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
+        build-context: |
+          envoy-deps=docker-image://envoy-deps
         platforms: ${{matrix.platforms}}
         target: envoy-build
         tags: ${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}

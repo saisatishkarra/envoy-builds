@@ -1,72 +1,101 @@
 ARG ENVOY_BUILD_TOOLS_TAG
 ARG ENVOY_TAG
-
-# Cross compile darwin against alpine base variant of eb build tools image
-ARG ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
 ARG DISTRO
-
 ARG BAZEL_BUILD_EXTRA_OPTIONS
 
-FROM --platform=$BUILDPLATFORM alpine:3.15.5 as bazel-alpine
-RUN wget -O /usr/local/bin/bazel \
-    https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-$([ $(uname -m) = "aarch64" ] && echo "arm64" || echo "amd64") \
-    && chmod +x /usr/local/bin/bazel 
+# Possible values: alpine, centos, windows
+# For darwin distro: Cross Compiled against alpine as default base variant unless overridden
+ARG ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
+####################################################################################
+# Pre Requisites Section
 
-FROM --platform=$BUILDPLATFORM centos:centos7 as bazel-centos
-RUN wget -O /usr/local/bin/bazel \
+FROM --platform=$BUILDPLATFORM openjdk:20-slim-buster as deps
+RUN apt update \
+    && apt install -y git wget \
+    && wget -O /usr/local/bin/bazel \
     https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-$([ $(uname -m) = "aarch64" ] && echo "arm64" || echo "amd64") \
-    && chmod +x /usr/local/bin/bazel
+    && chmod +x /usr/local/bin/bazel \
+    && rm -rf /var/lib/apt/lists/*
+RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
 
-# add current context and checkout envoy proxy
-FROM --platform=$BUILDPLATFORM alpine:3.15.5 as base
+FROM --platform=$BUILDPLATFORM deps as base
+USER envoy
 WORKDIR /app
 ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
 ENV ENVOY_SOURCE_DIR=/app/envoy
 ENV ENVOY_TAG=$ENVOY_TAG
-ADD tools/envoy $ENVOY_BUILD_TOOLS_DIR
+COPY --chown=envoy:envoy tools/envoy $ENVOY_BUILD_TOOLS_DIR
 RUN $ENVOY_BUILD_TOOLS_DIR/scripts/clone.sh
 
-#Pre fetch bazel depedencies for envoy target
-FROM --platform=$BUILDPLATFORM base as deps 
+FROM --platform=$BUILDPLATFORM base as bazelisk-cache
+RUN cd $ENVOY_SOURCE_DIR && bazel version
+
+####################################################################################
+# Builders section
+
+FROM --platform=$BUILDPLATFORM base as builder
+COPY --chown=envoy:envoy --from=bazelisk-cache /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
+
+FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-ubuntu:$ENVOY_BUILD_TOOLS_TAG as envoy-alpine-builder
+RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
+WORKDIR /app/envoy
+ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
+ENV ENVOY_SOURCE_DIR=/app/envoy
+COPY --from=builder /app/envoy /app/envoy
+COPY --from=builder /app/envoy-builds /app/envoy-builds
+COPY --from=builder /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
+COPY --from=builder /usr/local/bin/bazel /usr/local/bin/bazel
+
+FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-centos:$ENVOY_BUILD_TOOLS_TAG as envoy-centos-builder
+RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
+WORKDIR /app/envoy
+ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
+ENV ENVOY_SOURCE_DIR=/app/envoy
+COPY --from=builder /app/envoy /app/envoy
+COPY --from=builder /app/envoy-builds /app/envoy-builds
+COPY --from=builder /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
+COPY --from=builder /usr/local/bin/bazel /usr/local/bin/bazel
+
+FROM --platform=$BUILDPLATFORM envoy-$ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT-builder as envoy-builder
+
+####################################################################################
+
+# TODO: Setup gcc libraries to prefetch bazel in base-builder
+# Solve: Pre fetch OS Independent bazel depedencies for specific envoy target against default ubuntu base variant
+FROM --platform=$BUILDPLATFORM envoy-alpine-builder as envoy-deps
 ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
 RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/prefetch.sh
 
-FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-ubuntu:$ENVOY_BUILD_TOOLS_TAG as envoy-build-deps-alpine
-WORKDIR /app/envoy
-COPY --from=deps /app/envoy .
-COPY --from=deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
-COPY --from=bazel-alpine /usr/local/bin/bazel /usr/local/bin/bazel
+####################################################################################
 
-FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-centos:$ENVOY_BUILD_TOOLS_TAG as envoy-build-deps-centos
-WORKDIR /app/envoy
-COPY --from=deps /app/envoy .
-COPY --from=deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
-COPY --from=bazel-alpine /usr/local/bin/bazel /usr/local/bin/bazel
+# For TARGETOS=linux
+# ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
+FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-linux
+COPY --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
 
-# Base linux distro based image with prebuild envoy deps
-# ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT = alpine / centos
-# Cross compile base envoy build tools image variant. (Doesn't produce darwin)
-FROM --platform=$BUILDPLATFORM envoy-build-deps-$ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT as envoy-build-deps-linux
-
-# Cross compiling envoyproxy darwin from linux based image with prebuild envoy deps
-FROM --platform=$BUILDPLATFORM envoy-build-deps-linux as envoy-build-deps-darwin
+# For TARGETOS=darwin
+# ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
+FROM --platform=$BUILDPLATFORM envoy-build-linux as envoy-build-darwin
 COPY --from=crazymax/osxcross:latest /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
 ENV LD_LIBRARY_PATH="/osxcross/lib"
+
+####################################################################################
 
 # TARGETOS = linux / windows / darwin
 # TARGETPLATFORM = linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
 # bazel distro specific build flags
 # DISTRO= alpine / centos for linux os, darwin for darwin os
 
-FROM envoy-build-deps-$TARGETOS as envoy-build
+FROM envoy-build-$TARGETOS as envoy-build
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
 ENV DISTRO=$DISTRO
+ENV ENVOY_TAG=$ENVOY_TAG
 ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
 ENV BAZEL_BUILD_EXTRA_OPTIONS="$BAZEL_BUILD_EXTRA_OPTIONS --distdir ${ENVOY_BAZEL_OUTPUT_BASE_DIR}"
-RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/$DISTRO.sh
+#RUN "$ENVOY_BUILD_TOOLS_DIR/scripts/bazel/$DISTRO.sh"
 
 # RUN bash -c "bazel/setup_clang.sh /opt/llvm"
 

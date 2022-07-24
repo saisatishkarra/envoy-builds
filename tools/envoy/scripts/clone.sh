@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script fetches Envoy source code to $SOURCE_DIR
 #

@@ -22,12 +22,12 @@ ifeq ($(TARGETOS), linux)
 		$(error DISTRO is required. One of:$(SUPPORTED_LINUX_DISTROS))
 	endif
 	ifeq ($(DISTRO), $(filter $(DISTRO),$(SUPPORTED_LINUX_DISTROS)))
-		ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)	
+		ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)
 	endif
 else ifeq ($(TARGETOS), darwin)
 # Use alpine as envoy build tools base for cross compiling darwin	
 	DISTRO=$(TARGETOS)
-	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="alpine"
 else 
 # Windows
 	DISTRO=$(TARGETOS)
@@ -41,6 +41,7 @@ VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/e
 ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
 ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
 BUILD_ENVOY_FROM_SOURCES?=false
+TARGET?="envoy-build"
 ifndef TMPDIR
 	ENVOY_SOURCE_DIR=/tmp/envoy
 else
@@ -119,8 +120,9 @@ clean_envoy:
 build_envoy_image:
 	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
 	ENVOY_TAG="${ENVOY_TAG}" \
-	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
+	TARGET="${TARGET}" \
 	DISTRO="${DISTRO}" \
+	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
 	docker buildx build \
 		-f Dockerfile \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
@@ -129,8 +131,8 @@ build_envoy_image:
 		--build-arg DISTRO=${DISTRO} \
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
 		--platform=${TARGETOS}/${TARGETARCH} \
-		--no-cache \
 		--load \
+		--target=${TARGET} \
 		-t ${IMAGE} .
 
 .PHONY: inspect_envoy_image
@@ -173,3 +175,7 @@ inspect_envoy_image: build_envoy_image
 # docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
 # docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
 # docker rm -v "$id"
+
+# Alpine prefetch: 891 375s
+# Centos prefetch: 891 379s
+# prefetch is the same for any platform and only specific to a target

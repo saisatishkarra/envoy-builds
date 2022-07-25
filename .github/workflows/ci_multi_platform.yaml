@@ -12,7 +12,7 @@ on:
         type: string
         default: envoy
       noBuildxCache:
-        description: 'Don't use docker buildx cache'
+        description: 'Ignore docker buildx cache'
         type: boolean
         default: false
 

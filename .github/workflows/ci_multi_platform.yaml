@@ -75,8 +75,8 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-      name: envoy-deps
-      path: ${{env.ENVOY_DEPS_TAR}}
+        name: envoy-deps
+        path: ${{env.ENVOY_DEPS_TAR}}
 
   build:
     needs: metadata

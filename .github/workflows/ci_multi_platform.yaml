@@ -108,6 +108,27 @@ jobs:
         
     - uses: actions/checkout@v3
 
+    - name: Maximize build space
+      run: |
+        if [[ ${{ matrix.distro }} != 'darwin' ]]; then
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo docker system prune -f
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          sudo apt-get remove -y '^dotnet-.*'
+          sudo apt-get remove -y 'php.*'
+          sudo apt-get remove -y '^mongodb-.*'
+          sudo apt-get remove -y '^mysql-.*'
+          sudo apt-get remove -y azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo swapoff -a
+          sudo rm -f /mnt/swapfile
+          docker system prune -af
+        fi
+
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
     
@@ -140,7 +161,7 @@ jobs:
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
-        build-context: |
+        build-contexts: |
           envoy-deps=docker-image://envoy-deps
         platforms: ${{matrix.platforms}}
         target: envoy-build

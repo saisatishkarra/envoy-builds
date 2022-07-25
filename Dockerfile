@@ -36,46 +36,39 @@ FROM --platform=$BUILDPLATFORM base as builder
 COPY --chown=envoy:envoy --from=bazelisk-cache /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
 
 FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-ubuntu:$ENVOY_BUILD_TOOLS_TAG as envoy-alpine-builder
-RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
-WORKDIR /app/envoy
-ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
-ENV ENVOY_SOURCE_DIR=/app/envoy
-COPY --from=builder /app/envoy /app/envoy
-COPY --from=builder /app/envoy-builds /app/envoy-builds
-COPY --from=builder /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
-COPY --from=builder /usr/local/bin/bazel /usr/local/bin/bazel
-
 FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-centos:$ENVOY_BUILD_TOOLS_TAG as envoy-centos-builder
-RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
-WORKDIR /app/envoy
-ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
-ENV ENVOY_SOURCE_DIR=/app/envoy
-COPY --from=builder /app/envoy /app/envoy
-COPY --from=builder /app/envoy-builds /app/envoy-builds
-COPY --from=builder /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
-COPY --from=builder /usr/local/bin/bazel /usr/local/bin/bazel
 
 FROM --platform=$BUILDPLATFORM envoy-$ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT-builder as envoy-builder
+WORKDIR /app/envoy
+RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
+ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
+ENV ENVOY_SOURCE_DIR=/app/envoy
+COPY --chown=envoy:envoy --from=builder /app/envoy /app/envoy
+COPY --chown=envoy:envoy --from=builder /app/envoy-builds /app/envoy-builds
+COPY --chown=envoy:envoy --from=builder /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
+COPY --chown=envoy:envoy --from=builder /usr/local/bin/bazel /usr/local/bin/bazel
 
 ####################################################################################
 
 # TODO: Setup gcc libraries to prefetch bazel in base-builder
 # Solve: Pre fetch OS Independent bazel depedencies for specific envoy target against default ubuntu base variant
-FROM --platform=$BUILDPLATFORM envoy-alpine-builder as envoy-deps
+FROM --platform=$BUILDPLATFORM envoy-builder as envoy-deps
+USER envoy
 ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
 RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/prefetch.sh
-
-####################################################################################
 
 # For TARGETOS=linux
 # ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
 FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-linux
-COPY --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
+USER envoy
+COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
 
 # For TARGETOS=darwin
 # ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
-FROM --platform=$BUILDPLATFORM envoy-build-linux as envoy-build-darwin
-COPY --from=crazymax/osxcross:latest /osxcross /osxcross
+FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-darwin
+USER envoy
+COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
+COPY --chown=envoy:envoy --from=crazymax/osxcross:latest /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
 ENV LD_LIBRARY_PATH="/osxcross/lib"
 
@@ -87,6 +80,7 @@ ENV LD_LIBRARY_PATH="/osxcross/lib"
 # DISTRO= alpine / centos for linux os, darwin for darwin os
 
 FROM envoy-build-$TARGETOS as envoy-build
+USER envoy
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH

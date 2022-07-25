@@ -6,7 +6,7 @@ set -o nounset
 
 set -x
 
-source ${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel_env/init.sh
+source $(dirname "${BASH_SOURCE[0]}")/init.sh
 
 BAZEL_BUILD_OPTIONS=(
     "--config=libc++"

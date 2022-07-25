@@ -11,7 +11,7 @@ set -x
 
 export BUILD_TARGET=${BUILD_TARGET:-"//contrib/exe:envoy-static"}
 
-export CONTRIB_ENABLED_MATRIX_SCRIPT=$("${ENVOY_BUILD_TOOLS_DIR}/util/contrib_enabled_matrix.py")
+export CONTRIB_ENABLED_MATRIX_SCRIPT="${ENVOY_BUILD_TOOLS_DIR}/util/contrib_enabled_matrix.py"
 
 # Refer https://docs.bazel.build/versions/main/user-manual.html#flag--compilation_mode
 # Stripping is based on compilation mode

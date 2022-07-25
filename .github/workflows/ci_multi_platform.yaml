@@ -182,3 +182,28 @@ jobs:
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}} 
+
+    # Parse os nad arch from platform
+    - name: Zip artifact
+      run: |
+        IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}} \
+        ENVOY_OUT_DIR=${{env.out_dir}} \
+        make envoy_bin
+        if [[ -f ${{env.out_dir}}/envoy-${{matrix.distro}} ]]; then  
+          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{matrix.distro}}.tar.gz .
+        fi
+      env:
+        registry: kong
+        repo: envoy-builds
+        envoyTag: ${{github.event.inputs.envoyTag}}
+        distro: ${{matrix.distro}} 
+        out_dir: build/artifacts
+
+
+    - name: Save artifact
+      uses: actions/upload-artifact@v3
+      id: save_artifacts
+      with:
+        name: artifacts
+        path: |
+          envoy-*.tar.gz

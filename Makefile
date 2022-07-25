@@ -42,11 +42,9 @@ ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
 ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
 BUILD_ENVOY_FROM_SOURCES?=false
 TARGET?="envoy-build"
-ifndef TMPDIR
-	ENVOY_SOURCE_DIR=/tmp/envoy
-else
-	ENVOY_SOURCE_DIR=${TMPDIR}envoy
-endif
+ENVOY_OUT_DIR?=${WORK_DIR}/build/artifacts-$(TARGETOS)-$(TARGETARCH)/envoy
+ENVOY_OUT_BIN=envoy-$(DISTRO)
+
 
 REGISTRY?=local
 REPO?=envoy-builds
@@ -71,7 +69,7 @@ BAZEL_BUILD_EXTRA_OPTIONS?=""
 .PHONY: inspect
 inspect:
 	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-	ENVOY_SOURCE_DIR=$(ENVOY_SOURCE_DIR) \
+	ENVOY_OUT_DIR=$(ENVOY_OUT_DIR) \
 	BUILD_ENVOY_FROM_SOURCES=$(BUILD_ENVOY_FROM_SOURCES) \
 	ENVOY_TAG="${ENVOY_TAG}" \
 	ENVOY_VERSION_TRIMMED=$(ENVOY_VERSION_TRIMMED) \
@@ -79,35 +77,6 @@ inspect:
 	FLAVOUR=$(FLAVOUR) \
 	DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
 	$(ENVOY_BUILD_TOOLS_DIR)/scripts/inspect.sh
-
-.PHONY: clone
-clone:
-	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-	ENVOY_SOURCE_DIR="${ENVOY_SOURCE_DIR}" \
-	ENVOY_TAG="${ENVOY_TAG}" \
-	"${ENVOY_BUILD_TOOLS_DIR}/scripts/clone.sh"
-
-# .PHONY: init
-# init: clone 
-# 	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-# 	ENVOY_SOURCE_DIR="${ENVOY_SOURCE_DIR}" \
-# 	"${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/init.sh"
-
-.PHONY: fetch_envoy_deps
-fetch_envoy_deps: clone
-	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
-	ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output \
-	${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/prefetch.sh
-
-.PHONY: clean_envoy
-clean_envoy: ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
-clean_envoy:
-	ENVOY_SOURCE_DIR=$(ENVOY_SOURCE_DIR) \
-	rm -rf ${ENVOY_SOURCE_DIR}
-	rm -rf build/envoy
-	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}
-	docker system prune
 
 .PHONY: build_envoy_image
 
@@ -139,14 +108,21 @@ build_envoy_image:
 inspect_envoy_image: build_envoy_image
 	docker image inspect "${IMAGE}"
 	
+.PHONY: envoy_bin
+envoy_bin:
+	- mkdir ${ENVOY_OUT_DIR}
+	id=$(docker create "${IMAGE}")
+	docker cp "$id":/app/envoy/bazel-bin/contrib/exe/envoy-static "${ENVOY_OUT_DIR}/${ENVOY_OUT}"
+#docker cp "$id":/tmp/profile.gz "${ENVOY_OUT}/profile.gz"
+	docker rm -v "$id"
 
-
-#docker run -t "${IMAGE}" bash -c "xx-info env && uname -a"
-# docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
-# docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
-# docker rm -v "$id"
-
-
+.PHONY: clean_envoy
+clean_envoy:
+	ENVOY_OUT=$(ENVOY_OUT_DIR) \
+	rm -rf ${ENVOY_OUT_DIR}
+	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}
+	docker system prune
+	
 
 # .PHONY: build_envoy
 # build_envoy: inspect
@@ -154,7 +130,7 @@ inspect_envoy_image: build_envoy_image
 
 # build/envoy/artifacts/${TARGETOS}/envoy-${ENVOY_VERSION_TRIMMED}-${DISTRO}-${TARGETARCH}:
 # 	DISTRO=$(DISTRO) \
-# 	ENVOY_SOURCE_DIR=$(ENVOY_SOURCE_DIR) \
+# 	ENVOY_OUT=$(ENVOY_OUT) \
 # 	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
 # 	BUILD_ENVOY_FROM_SOURCES=$(BUILD_ENVOY_FROM_SOURCES) \
 # 	ENVOY_VERSION_TRIMMED=$(ENVOY_VERSION_TRIMMED) \

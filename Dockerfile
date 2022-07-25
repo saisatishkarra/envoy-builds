@@ -80,7 +80,6 @@ ENV LD_LIBRARY_PATH="/osxcross/lib"
 # DISTRO= alpine / centos for linux os, darwin for darwin os
 
 FROM envoy-build-$TARGETOS as envoy-build
-USER envoy
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH

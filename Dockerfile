@@ -1,6 +1,4 @@
 ARG ENVOY_BUILD_TOOLS_TAG
-ARG ENVOY_TAG
-ARG DISTRO
 ARG BAZEL_BUILD_EXTRA_OPTIONS
 
 # Possible values: alpine, centos, windows
@@ -21,6 +19,7 @@ RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
 FROM --platform=$BUILDPLATFORM deps as base
 USER envoy
 WORKDIR /app
+ARG ENVOY_TAG
 ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
 ENV ENVOY_SOURCE_DIR=/app/envoy
 ENV ENVOY_TAG=$ENVOY_TAG
@@ -91,6 +90,8 @@ FROM envoy-build-$TARGETOS as envoy-build
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
+ARG DISTRO
+ARG ENVOY_TAG
 ENV DISTRO=$DISTRO
 ENV ENVOY_TAG=$ENVOY_TAG
 ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output

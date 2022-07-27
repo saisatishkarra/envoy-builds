@@ -181,6 +181,12 @@ jobs:
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}} 
 
+    - uses: jungwinter/split@v2
+      id: split
+      with:
+        msg: ${{matrix.platforms}}
+        separatorseparator: '/'
+
     # Parse os nad arch from platform
     - name: Zip artifact
       run: |
@@ -188,15 +194,16 @@ jobs:
         ENVOY_OUT_DIR=${{env.out_dir}} \
         make envoy_bin
         if [[ -f ${{env.out_dir}}/envoy-${{matrix.distro}} ]]; then  
-          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{matrix.distro}}.tar.gz .
+          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{matrix.distro}}-${{env.artifactOS}}-${{env.artifactArch}}.tar.gz .
         fi
       env:
         registry: kong
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}} 
+        artifactOS: ${{ steps.split.outputs._1 }}
+        artifactArch: ${{ steps.split.outputs._2 }}
         out_dir: build/artifacts
-
 
     - name: Save artifact
       uses: actions/upload-artifact@v3

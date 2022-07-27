@@ -62,6 +62,8 @@ RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/prefetch.sh
 FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-linux
 USER envoy
 COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
+ENV ARTIFACTOS=TARGETOS
+ENV ARTIFACTaarch=TARGETARCH
 
 # For TARGETOS=darwin
 # ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
@@ -71,6 +73,8 @@ COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/ba
 COPY --chown=envoy:envoy --from=crazymax/osxcross:latest /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
 ENV LD_LIBRARY_PATH="/osxcross/lib"
+ENV ARTIFACTOS=darwin
+ENV ARTIFACTaarch=aamd64
 
 ####################################################################################
 
@@ -92,4 +96,3 @@ ENV BAZEL_BUILD_EXTRA_OPTIONS="$BAZEL_BUILD_EXTRA_OPTIONS --distdir ${ENVOY_BAZE
 RUN "$ENVOY_BUILD_TOOLS_DIR/scripts/bazel/$DISTRO.sh"
 
 # RUN bash -c "bazel/setup_clang.sh /opt/llvm"
-

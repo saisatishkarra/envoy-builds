@@ -161,8 +161,6 @@ jobs:
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
-        build-contexts: |
-          envoy-deps=docker-image://envoy-deps
         platforms: ${{matrix.platforms}}
         target: envoy-build
         tags: ${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}

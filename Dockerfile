@@ -1,6 +1,9 @@
+ARG IMAGE_NAME
+ARG TAG_METADATA
+ARG DISTRO
+####################################################################################
 ARG ENVOY_BUILD_TOOLS_TAG
 ARG BAZEL_BUILD_EXTRA_OPTIONS
-
 # Possible values: alpine, centos, windows
 # For darwin distro: Cross Compiled against alpine as default base variant unless overridden
 ARG ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
@@ -59,22 +62,15 @@ RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/prefetch.sh
 
 # For TARGETOS=linux
 # ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
-FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-linux
-USER envoy
-COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
-ENV ARTIFACTOS=TARGETOS
-ENV ARTIFACTaarch=TARGETARCH
+FROM --platform=$BUILDPLATFORM envoy-deps as envoy-build-linux
 
 # For TARGETOS=darwin
 # ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
-FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-darwin
+FROM --platform=$BUILDPLATFORM envoy-deps as envoy-build-darwin
 USER envoy
-COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
 COPY --chown=envoy:envoy --from=crazymax/osxcross:latest /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
 ENV LD_LIBRARY_PATH="/osxcross/lib"
-ENV ARTIFACTOS=darwin
-ENV ARTIFACTaarch=aamd64
 
 ####################################################################################
 
@@ -83,7 +79,7 @@ ENV ARTIFACTaarch=aamd64
 # bazel distro specific build flags
 # DISTRO= alpine / centos for linux os, darwin for darwin os
 
-FROM envoy-build-$TARGETOS as envoy-build
+FROM envoy-build-$TARGETOS-$TAG_METADATA as envoy-build
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH

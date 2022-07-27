@@ -46,15 +46,18 @@ VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/e
 ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
 ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
 BUILD_ENVOY_FROM_SOURCES?=false
-TARGET?="envoy-build"
+
 ENVOY_OUT_DIR?=${WORK_DIR}/build/artifacts-$(TARGETOS)-$(TARGETARCH)/envoy
 ENVOY_OUT_BIN=envoy-$(DISTRO)
+BUILD_TOOLS_SHA=$$(git rev-parse --short HEAD)
 
+REGISTRY_PORT=5002
+#localhost:$(REGISTRY_PORT)
+REGISTRY?=kong
+REPO=envoy-builds
+IMAGE_NAME=$(REGISTRY)/$(REPO)
+TAG_METADATA=${BUILD_TOOLS_SHA}-$(ENVOY_TAG)
 
-REGISTRY?=local
-REPO?=envoy-builds
-IMAGENAME=$(REGISTRY)/$(REPO) 
-IMAGE?=$(REGISTRY)/$(REPO):${ENVOY_TAG}-${DISTRO}
 BAZEL_BUILD_EXTRA_OPTIONS?=""
 
 # DOCKER_BUILD_EXTRA_OPTIONS=${DOCKER_BUILD_EXTRA_OPTIONS:-""}
@@ -83,36 +86,68 @@ inspect:
 	DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
 	$(ENVOY_BUILD_TOOLS_DIR)/scripts/inspect.sh
 
-.PHONY: build_envoy_image
+.PHONY: envoy_registry
+envoy_registry:
+	REGISTRY_PORT=$(REGISTRY_PORT) \
+	docker run -d -p $(REGISTRY_PORT):5000 --restart=always --name registry registry:2
+
+.PHONY: envoy_buildx_setup
+envoy_buildx_setup:
+	docker run --privileged --rm tonistiigi/binfmt --install ${TARGETARCH}
+	docker buildx create --name envoy-builder --bootstrap --use --platform=${TARGETOS}/${TARGETARCH}
+
+.PHONY: envoy_deps
+envoy_deps: envoy_buildx_setup
+	docker buildx build \
+		-f Dockerfile \
+		--push \
+		--build-arg IMAGE_NAME=${IMAGE_NAME} \
+		--build-arg TAG_METADATA=${TAG_METADATA} \
+		--build-arg DISTRO=${DISTRO} \
+		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
+		--build-arg ENVOY_TAG=${ENVOY_TAG} \
+		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
+		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+		--cache-to=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--platform=${TARGETOS}/${TARGETARCH} \
+		--target=envoy-deps \
+		-t ${IMAGE_NAME}:envoy-deps-${TAG_METADATA} .
+
+.PHONY: envoy_image
 
 # Figure out a way to pass DOCKER_BUILD_EXTRA_OPTIONS to buildkit
 # --add-host # network #s3 cache container
 # Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
-# Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
 # BAZEL_BUILD_EXTRA_OPTIONS
 
-build_envoy_image:
+envoy_build: envoy_deps
 	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
 	ENVOY_TAG="${ENVOY_TAG}" \
 	TARGET="${TARGET}" \
 	DISTRO="${DISTRO}" \
+	TAG_METADATA="${TAG_METADATA}" \
 	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
-	docker run --privileged --rm tonistiigi/binfmt --install ${TARGETARCH}
-	docker buildx create --name envoy-builder --bootstrap --use --platform=${TARGETOS}/${TARGETARCH}
 	docker buildx build \
 		-f Dockerfile \
+		--push \
+		--build-arg IMAGE_NAME=${IMAGE_NAME} \
+		--build-arg TAG_METADATA=${TAG_METADATA} \
+		--build-arg DISTRO=${DISTRO} \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
 		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
-		--build-arg DISTRO=${DISTRO} \
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+		--cache-to=type=registry,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
+		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
 		--platform=${TARGETOS}/${TARGETARCH} \
 		--load \
-		--target=${TARGET} \
-		-t ${IMAGE} .
+		--target=envoy-build \
+		-t ${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} .
 
 .PHONY: inspect_envoy_image
-inspect_envoy_image: build_envoy_image
+inspect_envoy_image: envoy_build
 	docker image inspect "${IMAGE}"
 	
 .PHONY: envoy_bin
@@ -124,7 +159,7 @@ envoy_bin:
 	docker rm -v "$id"
 
 .PHONY: clean_envoy
-clean_envoy:
+envoy_clean:
 	ENVOY_OUT=$(ENVOY_OUT_DIR) \
 	rm -rf ${ENVOY_OUT_DIR}
 	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}

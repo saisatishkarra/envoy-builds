@@ -30,8 +30,6 @@ jobs:
 
   # Always prefetch bazel only for alpine
   prefetch:
-    env:
-      ENVOY_DEPS_TAR: /tmp/envoy-deps.tar
     needs: metadata
     runs-on: 'ubuntu-latest'
     strategy:
@@ -67,16 +65,12 @@ jobs:
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
         target: envoy-deps
-        tags: envoy-deps
+        cache-to: type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}}
+        cache-from: type=registry,ref=kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}}
+        tags: kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}}
       env:
         envoyTag: ${{github.event.inputs.envoyTag}}
-        distro: ${{matrix.distro}}   
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: envoy-deps
-        path: ${{env.ENVOY_DEPS_TAR}}
+        distro: ${{matrix.distro}}
 
   build:
     needs: [metadata, prefetch]
@@ -136,17 +130,6 @@ jobs:
       id: buildx
       with:
         install: true
-    
-    - name: Download prefetched envoy deps 
-      uses: actions/download-artifact@v3
-      with:
-        name: envoy-deps
-        path: /tmp
-
-    - name: Load image
-      run: |
-        docker load --input ${{env.ENVOY_DEPS_TAR}}
-        docker image ls -a
           
     - name: Build and push
       uses: docker/build-push-action@v3
@@ -163,23 +146,18 @@ jobs:
           DISTRO=${{env.distro}}
         platforms: ${{matrix.platforms}}
         target: envoy-build
-        tags: ${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}}
+        cache-to: |
+          type=registry,mode=max,ref=kong/envoy-builds:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}}
+        cache-from: |
+          type=registry,ref=kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}} 
+          type=registry,ref=kong/envoy-builds:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}}
+        tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}}
       env:
         ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || matrix.distro}} 
         registry: kong
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
-        distro: ${{matrix.distro}}   
-
-    - name: Inspect Image
-      run: |
-        IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}} \
-        make inspect_envoy_image
-      env:
-        registry: kong
-        repo: envoy-builds
-        envoyTag: ${{github.event.inputs.envoyTag}}
-        distro: ${{matrix.distro}} 
+        distro: ${{matrix.distro}}
 
     - uses: jungwinter/split@v2
       id: split
@@ -190,7 +168,7 @@ jobs:
     # Parse os nad arch from platform
     - name: Zip artifact
       run: |
-        IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}}-${{env.distro}} \
+        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}} \
         ENVOY_OUT_DIR=${{env.out_dir}} \
         make envoy_bin
         if [[ -f ${{env.out_dir}}/envoy-${{matrix.distro}} ]]; then  

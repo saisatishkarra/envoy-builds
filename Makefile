@@ -101,8 +101,6 @@ envoy_deps:
 	docker buildx build \
 		-f Dockerfile \
 		--push \
-		--build-arg IMAGE_NAME=${IMAGE_NAME} \
-		--build-arg TAG_METADATA=${TAG_METADATA} \
 		--build-arg DISTRO=${DISTRO} \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
@@ -130,8 +128,6 @@ envoy_build: envoy_deps
 	docker buildx build \
 		-f Dockerfile \
 		--push \
-		--build-arg IMAGE_NAME=${IMAGE_NAME} \
-		--build-arg TAG_METADATA=${TAG_METADATA} \
 		--build-arg DISTRO=${DISTRO} \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \

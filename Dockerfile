@@ -1,7 +1,3 @@
-ARG IMAGE_NAME
-ARG TAG_METADATA
-ARG DISTRO
-####################################################################################
 ARG ENVOY_BUILD_TOOLS_TAG
 ARG BAZEL_BUILD_EXTRA_OPTIONS
 # Possible values: alpine, centos, windows

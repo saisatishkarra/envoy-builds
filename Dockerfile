@@ -66,7 +66,7 @@ FROM --platform=$BUILDPLATFORM envoy-deps as envoy-build-linux
 
 # For TARGETOS=darwin
 # ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
-FROM --platform=$BUILDPLATFORM envoy-deps as envoy-build-darwin
+FROM --platform=$BUILDPLATFORM envoy-build-linux as envoy-build-darwin
 USER envoy
 COPY --chown=envoy:envoy --from=crazymax/osxcross:latest /osxcross /osxcross
 ENV PATH="/osxcross/bin:$PATH"
@@ -79,7 +79,7 @@ ENV LD_LIBRARY_PATH="/osxcross/lib"
 # bazel distro specific build flags
 # DISTRO= alpine / centos for linux os, darwin for darwin os
 
-FROM envoy-build-$TARGETOS-$TAG_METADATA as envoy-build
+FROM envoy-build-$TARGETOS as envoy-build
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH

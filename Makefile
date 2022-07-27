@@ -93,11 +93,11 @@ envoy_registry:
 
 .PHONY: envoy_buildx_setup
 envoy_buildx_setup:
-	docker run --privileged --rm tonistiigi/binfmt --install ${TARGETARCH}
-	docker buildx create --name envoy-builder --bootstrap --use --platform=${TARGETOS}/${TARGETARCH}
+	docker run --privileged --rm tonistiigi/binfmt --install all
+	docker buildx create --name envoy-builder --bootstrap --use
 
 .PHONY: envoy_deps
-envoy_deps: envoy_buildx_setup
+envoy_deps:
 	docker buildx build \
 		-f Dockerfile \
 		--push \
@@ -110,7 +110,6 @@ envoy_deps: envoy_buildx_setup
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
 		--cache-to=type=registry,mode=max,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
 		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
-		--platform=${TARGETOS}/${TARGETARCH} \
 		--target=envoy-deps \
 		-t ${IMAGE_NAME}:envoy-deps-${TAG_METADATA} .
 
@@ -142,7 +141,6 @@ envoy_build: envoy_deps
 		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
 		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
 		--platform=${TARGETOS}/${TARGETARCH} \
-		--load \
 		--target=envoy-build \
 		-t ${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} .
 

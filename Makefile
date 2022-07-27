@@ -108,7 +108,7 @@ envoy_deps: envoy_buildx_setup
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
 		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
-		--cache-to=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--cache-to=type=registry,mode=max,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
 		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
 		--platform=${TARGETOS}/${TARGETARCH} \
 		--target=envoy-deps \
@@ -138,7 +138,7 @@ envoy_build: envoy_deps
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
 		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
-		--cache-to=type=registry,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
+		--cache-to=type=registry,mode=max,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
 		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
 		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
 		--platform=${TARGETOS}/${TARGETARCH} \

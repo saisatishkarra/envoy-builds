@@ -1,5 +1,6 @@
 SUPPORTED_OS:= linux darwin windows
 SUPPORTED_LINUX_DISTROS:= alpine centos
+SUPPORTED_ARCH:= amd64 arm64
 
 ifndef TARGETOS
 	$(error TARGETOS is required)
@@ -11,6 +12,10 @@ endif
 
 ifndef ENVOY_TAG
 	$(error ENVOY_TAG (vX.Y.Z) is required)
+endif
+
+ifneq ($(TARGETARCH), $(filter $(TARGETARCH), $(SUPPORTED_ARCH)))
+	$(error TARGETARCH must be one of $(SUPPORTED_ARCH)) 
 endif
 
 ifneq ($(TARGETOS), $(filter $(TARGETOS), $(SUPPORTED_OS)))
@@ -92,6 +97,8 @@ build_envoy_image:
 	TARGET="${TARGET}" \
 	DISTRO="${DISTRO}" \
 	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
+	docker run --privileged --rm tonistiigi/binfmt --install ${TARGETARCH}
+	docker buildx create --name envoy-builder --bootstrap --use --platform=${TARGETOS}/${TARGETARCH}
 	docker buildx build \
 		-f Dockerfile \
 		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
@@ -121,7 +128,9 @@ clean_envoy:
 	ENVOY_OUT=$(ENVOY_OUT_DIR) \
 	rm -rf ${ENVOY_OUT_DIR}
 	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}
-	docker system prune
+	docker buildx stop envoy-builder
+	docker buildx rm envoy-builder
+#docker system prune
 	
 
 # .PHONY: build_envoy

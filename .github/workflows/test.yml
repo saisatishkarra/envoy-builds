@@ -25,30 +25,35 @@ jobs:
       fail-fast: false
       matrix:
         allow_failure: [false]
-        distro: [alpine, centos, windows]
-        platforms: [linux/amd64, linux/arm64, windows/amd64, windows/arm64]
+        distro: [alpine, centos]
+        platforms: [linux/amd64, linux/arm64]
+        include:
+          - distro: windows
+            platforms: windows/amd64
+          - distro: windows
+            platforms: windows/arm64
         #mode: [fips, debug, stripped]
         #include / exlcude combinations
     runs-on: ${{ matrix.distro != 'windows' && 'ubuntu-latest' || 'windows-2019' }}
     continue-on-error: ${{ matrix.allow_failure }}
     steps:
     
-    - uses: jungwinter/split@v2
-      id: split
-      with:
-        msg: '${{matrix.platforms}}'
-        separator: '/'
+    # - uses: jungwinter/split@v2
+    #   id: split
+    #   with:
+    #     msg: '${{matrix.platforms}}'
+    #     separator: '/'
 
-    - name: Inspect
-      run: |
-        echo "Build Environment:"
-        echo "envoyTag: ${{github.event.inputs.envoyTag}}"
-        echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
-        echo "OS: ${{env.artifactOS}}"
-        echo "ARCH: ${{env.artifactArch}}"
-      env:
-        artifactOS: ${{ steps.split.outputs._0 }}
-        artifactArch: ${{ steps.split.outputs._1 }}
+    # - name: Inspect
+    #   run: |
+    #     echo "Build Environment:"
+    #     echo "envoyTag: ${{github.event.inputs.envoyTag}}"
+    #     echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
+    #     echo "OS: ${{env.artifactOS}}"
+    #     echo "ARCH: ${{env.artifactArch}}"
+    #   env:
+    #     artifactOS: ${{ steps.split.outputs._0 }}
+    #     artifactArch: ${{ steps.split.outputs._1 }}
         
     - uses: actions/checkout@v3
 

@@ -47,8 +47,8 @@ jobs:
         echo "OS: ${{env.artifactOS}}"
         echo "ARCH: ${{env.artifactArch}}"
       env:
-        artifactOS: ${{ steps.split.outputs._1 }}
-        artifactArch: ${{ steps.split.outputs._2 }}
+        artifactOS: ${{ steps.split.outputs._0 }}
+        artifactArch: ${{ steps.split.outputs._1 }}
         
     - uses: actions/checkout@v3
 

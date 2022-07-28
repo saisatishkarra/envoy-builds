@@ -51,6 +51,7 @@ ENVOY_OUT_DIR?=${WORK_DIR}/build/artifacts-$(TARGETOS)-$(TARGETARCH)/envoy
 ENVOY_OUT_BIN=envoy-$(DISTRO)
 BUILD_TOOLS_SHA=$$(git rev-parse --short HEAD)
 
+# TODO: Use local registry instead of remote dockerhub
 REGISTRY_PORT=5002
 #localhost:$(REGISTRY_PORT)
 REGISTRY?=kong

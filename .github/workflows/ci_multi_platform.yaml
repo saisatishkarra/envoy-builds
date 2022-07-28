@@ -52,6 +52,13 @@ jobs:
       id: buildx
       with:
         install: true
+    
+    - name: Login to DockerHub
+      if: success()
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.GHA_DOCKERHUB_PUSH_USER }}
+        password: ${{ secrets.GHA_KONG_DOCKERHUB_PUSH_TOKEN }}
 
     - name: Build Envoy Deps and export
       uses: docker/build-push-action@v3
@@ -130,7 +137,14 @@ jobs:
       id: buildx
       with:
         install: true
-          
+    
+    - name: Login to DockerHub
+      if: success()
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.GHA_DOCKERHUB_PUSH_USER }}
+        password: ${{ secrets.GHA_KONG_DOCKERHUB_PUSH_TOKEN }}
+        
     - name: Build and push
       uses: docker/build-push-action@v3
       with:

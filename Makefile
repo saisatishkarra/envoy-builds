@@ -49,7 +49,7 @@ BUILD_ENVOY_FROM_SOURCES?=false
 
 ENVOY_OUT_DIR?=${WORK_DIR}/build/artifacts-$(TARGETOS)-$(TARGETARCH)/envoy
 ENVOY_OUT_BIN=envoy-$(DISTRO)
-BUILD_TOOLS_SHA=$$(git rev-parse --short HEAD)
+BUILD_TOOLS_SHA?=$$(git rev-parse --short HEAD)
 
 # TODO: Use local registry instead of remote dockerhub
 REGISTRY_PORT=5002
@@ -57,7 +57,7 @@ REGISTRY_PORT=5002
 REGISTRY?=kong
 REPO=envoy-builds
 IMAGE_NAME=$(REGISTRY)/$(REPO)
-TAG_METADATA=${BUILD_TOOLS_SHA}-$(ENVOY_TAG)
+TAG_METADATA=$(BUILD_TOOLS_SHA)-$(ENVOY_TAG)
 
 BAZEL_BUILD_EXTRA_OPTIONS?=""
 
@@ -130,15 +130,16 @@ envoy_build: envoy_deps
 
 .PHONY: inspect_envoy_image
 inspect_envoy_image: envoy_build
-	docker image inspect "${IMAGE}"
+	docker image inspect "${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}"
 	
 .PHONY: envoy_bin
 envoy_bin:
-	- mkdir ${ENVOY_OUT_DIR}
-	id=$(docker create "${IMAGE}")
-	docker cp "$id":/app/envoy/bazel-bin/contrib/exe/envoy-static "${ENVOY_OUT_DIR}/${ENVOY_OUT}"
-#docker cp "$id":/tmp/profile.gz "${ENVOY_OUT}/profile.gz"
-	docker rm -v "$id"
+	DISTRO="${DISTRO}" \
+	ENVOY_TAG="${ENVOY_TAG}" \
+	mkdir -p ${ENVOY_OUT_DIR}
+	id=$$(docker create ${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}) \
+	docker cp $id:/app/envoy/bazel-bin/contrib/exe/envoy-static ${ENVOY_OUT_DIR}/${ENVOY_OUT}
+
 
 .PHONY: clean_envoy
 envoy_clean:
@@ -148,3 +149,4 @@ envoy_clean:
 	docker buildx stop envoy-builder
 	docker buildx rm envoy-builder
 #docker system prune
+#docker rm -v $id

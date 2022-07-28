@@ -87,9 +87,9 @@ jobs:
           DISTRO=${{env.distro}}
         target: envoy-deps
         cache-to: |
-          type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
+          type=registry,mode=max,ref=kong/envoy-builds-cache:envoy-deps-${{env.bazelCacheKey}}
         cache-from: |
-          type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
+          type=registry,ref=kong/envoy-builds-cache:envoy-deps-${{env.bazelCacheKey}}
         tags: |
           kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
           kong/envoy-builds:envoy-deps-${{env.ebSHA}}-${{env.envoyTag}}
@@ -128,6 +128,12 @@ jobs:
         echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
         echo "envoyBuildSHA: ${{needs.metadata.outputs.ebSHA}}"
         echo "bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}"
+    
+    - uses: jungwinter/split@v2
+      id: split
+      with:
+        msg: '${{matrix.platforms}}'
+        separator: '/'
 
     - uses: actions/checkout@v3
 
@@ -174,7 +180,7 @@ jobs:
         load: true
         no-cache: ${{github.event.inputs.noBuildxCache}}
         context: .
-        file: Dockerfile
+        file: Dockerfile.${{env.artifactOS}}
         build-args: |
           ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
@@ -183,10 +189,10 @@ jobs:
         platforms: ${{matrix.platforms}}
         target: envoy-build
         cache-to: |
-          type=registry,mode=max,ref=kong/envoy-builds:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+          type=registry,mode=max,ref=kong/envoy-builds-cache:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
         cache-from: |
-          type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
-          type=registry,ref=kong/envoy-builds:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+          type=registry,ref=kong/envoy-builds-cache:envoy-deps-${{env.bazelCacheKey}}
+          type=registry,ref=kong/envoy-builds-cache:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
         tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
       env:
         ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || matrix.distro}} 
@@ -196,21 +202,20 @@ jobs:
         distro: ${{matrix.distro}}
         ebSHA: ${{needs.metadata.outputs.ebSHA}}
         bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}
+        artifactOS: ${{ steps.split.outputs._0 }}
+        artifactArch: ${{ steps.split.outputs._1 }}
 
-    - uses: jungwinter/split@v2
-      id: split
-      with:
-        msg: '${{matrix.platforms}}'
-        separator: '/'
-
+   
     # Parse os nad arch from platform
     - name: Zip artifact
       run: |
-        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}} \
-        ENVOY_OUT_DIR=${{env.out_dir}} \
-        make envoy_bin
-        if [[ -f ${{env.out_dir}}/envoy-${{matrix.distro}} ]]; then  
-          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{matrix.distro}}-${{env.artifactOS}}-${{env.artifactArch}}.tar.gz .
+        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+        docker inspect ${IMAGE} 
+        mkdir -p ${{env.out_dir}}
+        id=$(docker create ${IMAGE})
+        docker cp $id:/app/envoy/bazel-bin/contrib/exe/envoy-static ${{env.out_dir}}/${{env.out_bin}}
+        if [[ -f ${{env.out_dir}}/${{env.out_bin}} ]]; then  
+          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{env.distro}}-${{env.artifactOS}}-${{env.artifactArch}}.tar.gz .
         fi
       env:
         registry: kong
@@ -220,6 +225,7 @@ jobs:
         artifactOS: ${{ steps.split.outputs._0 }}
         artifactArch: ${{ steps.split.outputs._1 }}
         out_dir: build/artifacts
+        out_bin: envoy-${{matrix.distro}}
 
     - name: Save artifact
       uses: actions/upload-artifact@v3

@@ -48,7 +48,7 @@ jobs:
       matrix:
         allow_failure: [true]
         distro: [alpine]
-    continue-on-error: true
+    continue-on-error: false
     steps:
 
     - name: Inspect
@@ -88,7 +88,6 @@ jobs:
         target: envoy-deps
         cache-to: |
           type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
-          type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{env.ebSHA}}-${{env.envoyTag}}
         cache-from: |
           type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
         tags: |

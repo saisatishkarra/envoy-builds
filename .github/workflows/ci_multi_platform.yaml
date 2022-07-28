@@ -207,7 +207,7 @@ jobs:
       id: split
       with:
         msg: '${{matrix.platforms}}'
-        separatorseparator: '/'
+        separator: '/'
 
     # Parse os nad arch from platform
     - name: Zip artifact

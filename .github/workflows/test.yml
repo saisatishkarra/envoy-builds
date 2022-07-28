@@ -37,7 +37,7 @@ jobs:
       id: split
       with:
         msg: '${{matrix.platforms}}'
-        separatorseparator: '/'
+        separator: '/'
 
     - name: Inspect
       run: |

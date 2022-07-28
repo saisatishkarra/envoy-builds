@@ -68,22 +68,13 @@ jobs:
         load: true
         no-cache: ${{github.event.inputs.noBuildxCache}}
         context: .
-        file: Dockerfile.test
+        file: Dockerfile
         build-args: |
           ENVOY_TAG=${{env.envoyTag}}
         platforms: ${{matrix.platforms}}
-        target: deps
+        target: envoy-build
         tags: ${{env.registry}}/${{env.repo}}:${{env.envoyTag}}
       env: 
-        registry: kong
-        repo: envoy-builds
-        envoyTag: ${{github.event.inputs.envoyTag}}
-
-    - name: Inspect Image
-      run: |
-        IMAGE=${{env.registry}}/${{env.repo}}:${{env.envoyTag}} \
-        make inspect_envoy_image
-      env:
         registry: kong
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}

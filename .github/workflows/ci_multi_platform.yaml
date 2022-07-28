@@ -223,8 +223,8 @@ jobs:
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}} 
-        artifactOS: ${{ steps.split.outputs._1 }}
-        artifactArch: ${{ steps.split.outputs._2 }}
+        artifactOS: ${{ steps.split.outputs._0 }}
+        artifactArch: ${{ steps.split.outputs._1 }}
         out_dir: build/artifacts
 
     - name: Save artifact

@@ -72,18 +72,6 @@ BAZEL_BUILD_EXTRA_OPTIONS?=""
 # and ENVOY_DISTRO variables. Envoy version could be specified by ENVOY_TAG that accepts git tag or commit
 # hash values.
 
-.PHONY: inspect
-inspect:
-	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-	ENVOY_OUT_DIR=$(ENVOY_OUT_DIR) \
-	BUILD_ENVOY_FROM_SOURCES=$(BUILD_ENVOY_FROM_SOURCES) \
-	ENVOY_TAG="${ENVOY_TAG}" \
-	ENVOY_VERSION_TRIMMED=$(ENVOY_VERSION_TRIMMED) \
-	DISTRO=$(DISTRO) \
-	FLAVOUR=$(FLAVOUR) \
-	DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-	$(ENVOY_BUILD_TOOLS_DIR)/scripts/inspect.sh
-
 .PHONY: envoy_registry
 envoy_registry:
 	REGISTRY_PORT=$(REGISTRY_PORT) \

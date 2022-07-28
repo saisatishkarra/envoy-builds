@@ -78,6 +78,7 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         context: .
+        push: true
         file: Dockerfile.${{matrix.os}}
         outputs: type=docker,dest=${{env.ENVOY_DEPS_TAR}}
         no-cache: ${{github.event.inputs.noBuildxCache}}

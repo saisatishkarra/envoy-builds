@@ -38,7 +38,7 @@ jobs:
         run: |
           echo "::set-output name=ebSHA::$(git rev-parse --short HEAD)"
           echo "::set-output name=bazelCacheKey::${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile')}}-${{github.event.inputs.envoyTag}}"
-          
+        
   # Always prefetch bazel only for alpine
   prefetch:
     needs: metadata
@@ -47,7 +47,7 @@ jobs:
       fail-fast: false
       matrix:
         allow_failure: [true]
-        distro: [alpine]
+        os: [linux]
     continue-on-error: false
     steps:
 
@@ -78,13 +78,12 @@ jobs:
       uses: docker/build-push-action@v3
       with:
         context: .
-        file: Dockerfile
+        file: Dockerfile.${{matrix.os}}
         outputs: type=docker,dest=${{env.ENVOY_DEPS_TAR}}
         no-cache: ${{github.event.inputs.noBuildxCache}}
         build-args: |
           ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
           ENVOY_TAG=${{env.envoyTag}}
-          DISTRO=${{env.distro}}
         target: envoy-deps
         cache-to: |
           type=registry,mode=max,ref=kong/envoy-builds-cache:envoy-deps-${{env.bazelCacheKey}}
@@ -95,7 +94,6 @@ jobs:
           kong/envoy-builds:envoy-deps-${{env.ebSHA}}-${{env.envoyTag}}
       env:
         envoyTag: ${{github.event.inputs.envoyTag}}
-        distro: ${{matrix.distro}}
         ebSHA: ${{needs.metadata.outputs.ebSHA}}
         bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}
 
@@ -114,7 +112,8 @@ jobs:
       matrix:
         allow_failure: [false]
         distro: [alpine, centos]
-        platforms: [linux/amd64, linux/arm64]
+        os: [linux]
+        arch: [amd64, arm64]
         #mode: [fips, debug, stripped]
         #include / exlcude combinations
     runs-on: 'ubuntu-latest'
@@ -128,12 +127,6 @@ jobs:
         echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
         echo "envoyBuildSHA: ${{needs.metadata.outputs.ebSHA}}"
         echo "bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}"
-    
-    - uses: jungwinter/split@v2
-      id: split
-      with:
-        msg: '${{matrix.platforms}}'
-        separator: '/'
 
     - uses: actions/checkout@v3
 
@@ -186,7 +179,7 @@ jobs:
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
-        platforms: ${{matrix.platforms}}
+        platforms: ${{matrix.os}}/${{matrix.arch}}
         target: envoy-build
         cache-to: |
           type=registry,mode=max,ref=kong/envoy-builds-cache:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
@@ -222,8 +215,8 @@ jobs:
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}} 
-        artifactOS: ${{ steps.split.outputs._0 }}
-        artifactArch: ${{ steps.split.outputs._1 }}
+        artifactOS: ${{matrix.os}}
+        artifactArch: ${{matrix.arch}}
         out_dir: build/artifacts
         out_bin: envoy-${{matrix.distro}}
 

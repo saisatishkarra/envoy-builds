@@ -186,7 +186,7 @@ jobs:
         cache-to: |
           type=registry,mode=max,ref=kong/envoy-builds:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
         cache-from: |
-          type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}
+          type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
           type=registry,ref=kong/envoy-builds:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
         tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
       env:

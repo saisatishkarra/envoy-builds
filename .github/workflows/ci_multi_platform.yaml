@@ -113,6 +113,17 @@ jobs:
         distro: [alpine, centos]
         os: [linux]
         arch: [amd64, arm64]
+        bazel_compile_mode: [opt, dbg, fastbuild]
+        bazel_compile_options: [""]
+        include:
+          - distro: alpine
+            arch: amd64
+            bazel_compile_mode: opt
+            bazel_compile_options: "--define boringssl=fips"
+          - distro: alpine
+            arch: amd64
+            bazel_compile_mode: dbg
+            bazel_compile_options: "--define boringssl=fips"
         #mode: [fips, debug, stripped]
         #include / exlcude combinations
     runs-on: 'ubuntu-latest'
@@ -168,7 +179,7 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v3
       with:
-        push: false
+        push: true
         load: true
         no-cache: ${{github.event.inputs.noBuildxCache}}
         context: .
@@ -178,6 +189,8 @@ jobs:
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
+          BAZEL_BUILD_EXTRA_OPTIONS=${{env.bazelBuildExtraOptions}}
+          BAZEL_COMPILATION_MODE=${{env.bazelCompilationMode}}
         platforms: ${{matrix.os}}/${{matrix.arch}}
         target: envoy-build
         cache-to: |
@@ -196,6 +209,13 @@ jobs:
         bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}
         artifactOS: ${{matrix.os}}
         artifactArch: ${{matrix.arch}}
+        bazelBuildExtraOptions: >-
+          --profile=/tmp/profile.gz
+          --discard_analysis_cache
+          --nostamp 
+          --nouse_action_cache
+          ${{matrix.bazel_compile_options}}
+        bazelCompilationMode: ${{matrix.bazel_compile_mode}}
 
    
     # Parse os nad arch from platform
@@ -207,17 +227,20 @@ jobs:
         id=$(docker create ${IMAGE})
         docker cp $id:/app/envoy/bazel-bin/contrib/exe/envoy-static ${{env.out_dir}}/${{env.out_bin}}
         if [[ -f ${{env.out_dir}}/${{env.out_bin}} ]]; then  
-          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{env.distro}}-${{env.artifactOS}}-${{env.artifactArch}}.tar.gz .
+          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{env.distro}}-${{env.artifactOS}}-${{env.artifactArch}}${{env.out_ext}}.tar.gz .
         fi
       env:
         registry: kong
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
-        distro: ${{matrix.distro}} 
+        distro: ${{matrix.distro}}
+        ebSHA: ${{needs.metadata.outputs.ebSHA}} 
         artifactOS: ${{matrix.os}}
         artifactArch: ${{matrix.arch}}
         out_dir: build/artifacts
         out_bin: envoy-${{matrix.distro}}
+        out_ext: ${{ matrix.bazel_compile_options != '' && '-extended' || '' }}
+        bazelCompilationMode: ${{matrix.bazel_compile_mode}}
 
     - name: Save artifact
       uses: actions/upload-artifact@v3

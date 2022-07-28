@@ -1,5 +1,7 @@
 ARG ENVOY_BUILD_TOOLS_TAG
 ARG BAZEL_BUILD_EXTRA_OPTIONS
+ARG BAZEL_COMPILATION_MODE?=opt
+
 # Possible values: alpine, centos, windows
 # For darwin distro: Cross Compiled against alpine as default base variant unless overridden
 ARG ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
@@ -84,6 +86,7 @@ ARG ENVOY_TAG
 ENV DISTRO=$DISTRO
 ENV ENVOY_TAG=$ENVOY_TAG
 ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
+ENV BAZEL_COMPILATION_MODE=$BAZEL_COMPILATION_MODE
 ENV BAZEL_BUILD_EXTRA_OPTIONS="$BAZEL_BUILD_EXTRA_OPTIONS --distdir ${ENVOY_BAZEL_OUTPUT_BASE_DIR}"
 RUN bash -c "$ENVOY_SOURCE_DIR/bazel/setup_clang.sh /opt/llvm"
 RUN "$ENVOY_BUILD_TOOLS_DIR/scripts/bazel/$DISTRO.sh"

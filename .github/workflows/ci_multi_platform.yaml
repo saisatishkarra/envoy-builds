@@ -99,7 +99,6 @@ jobs:
 
   build:
     needs: [metadata, prefetch]
-    if: always()
     env:
       BAZEL_BUILD_EXTRA_OPTIONS: >-
         --discard_analysis_cache 

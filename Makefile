@@ -55,8 +55,11 @@ BUILD_TOOLS_SHA?=$$(git rev-parse --short HEAD)
 REGISTRY_PORT=5002
 #localhost:$(REGISTRY_PORT)
 REGISTRY?=kong
-REPO=envoy-builds
-IMAGE_NAME=$(REGISTRY)/$(REPO)
+ARTIFACT_REPO=envoy-builds
+CACHE_REPO=envoy-builds-cache
+
+CACHE_IMAGE_NAME=$(REGISTRY)/$(CACHE_REPO)
+ARTIFACT_IMAGE_NAME=$(REGISTRY)/$(ARTIFACT_REPO)
 TAG_METADATA=$(BUILD_TOOLS_SHA)-$(ENVOY_TAG)
 
 BAZEL_BUILD_EXTRA_OPTIONS?=""
@@ -93,8 +96,8 @@ envoy_deps:
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
 		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
-		--cache-to=type=registry,mode=max,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
-		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--cache-to=type=registry,mode=max,ref=${CACHE_IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--cache-from=type=registry,ref=${CACHE_IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
 		--target=envoy-deps \
 		-t ${IMAGE_NAME}:envoy-deps-${TAG_METADATA} .
 
@@ -121,23 +124,23 @@ envoy_build: envoy_deps
 		--build-arg ENVOY_TAG=${ENVOY_TAG} \
 		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
 		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
-		--cache-to=type=registry,mode=max,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
-		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
-		--cache-from=type=registry,ref=${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
+		--cache-to=type=registry,mode=max,ref=${CACHE_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
+		--cache-from=type=registry,ref=${CACHE_IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
+		--cache-from=type=registry,ref=${CACHE_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
 		--platform=${TARGETOS}/${TARGETARCH} \
 		--target=envoy-build \
-		-t ${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} .
+		-t ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} .
 
 .PHONY: inspect_envoy_image
 inspect_envoy_image: envoy_build
-	docker image inspect "${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}"
+	docker image inspect ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}
 	
 .PHONY: envoy_bin
 envoy_bin:
 	DISTRO="${DISTRO}" \
 	ENVOY_TAG="${ENVOY_TAG}" \
 	mkdir -p ${ENVOY_OUT_DIR}
-	id=$$(docker create ${IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}) \
+	id=$$(docker create ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}) \
 	docker cp $id:/app/envoy/bazel-bin/contrib/exe/envoy-static ${ENVOY_OUT_DIR}/${ENVOY_OUT}
 
 

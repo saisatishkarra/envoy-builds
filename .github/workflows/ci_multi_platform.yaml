@@ -22,12 +22,28 @@ jobs:
     continue-on-error: false
     outputs:
       ebToolsTag: "${{steps.eb_tools_metadata.outputs.ebToolsTag}}"
+      ebSHA: "${{steps.eb_metadata.outputs.ebSHA}}"
+      bazelCacheKey: "${{steps.eb_metadata.outputs.bazelCacheKey}}"
     steps:
+
+      - uses: actions/checkout@v3
+
       - name: Set envoyproxy-build-tools metadata
         id: eb_tools_metadata
         run: |
           echo "::set-output name=ebToolsTag::$(curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/${{github.event.inputs.envoyTag}}/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's#.*envoyproxy/envoy-build-ubuntu:\(.*\)#\1#' | uniq)"
-
+      
+      - name: Set envoy-builds metadata
+        id: eb_metadata
+        run: |
+          echo "::set-output name=ebSHA::$(git rev-parse --short HEAD)"
+          echo "::set-output name=bazelCacheKey:: \
+            ${{hashFiles( \
+              'tools/envoy/**/*.sh', \
+              'tools/envoy/util/extensions.py', \
+              'Dockerfile' \
+            )}}-${{github.event.inputs.envoyTag}}"
+          
   # Always prefetch bazel only for alpine
   prefetch:
     needs: metadata
@@ -45,7 +61,9 @@ jobs:
         echo "Build Environment:"
         echo "envoyTag: ${{github.event.inputs.envoyTag}}"
         echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
-      
+        echo "envoyBuildSHA: ${{needs.metadata.outputs.ebSHA}}"
+        echo "bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}"
+
     - uses: actions/checkout@v3
     
     - uses: docker/setup-buildx-action@v2
@@ -60,6 +78,7 @@ jobs:
         username: ${{ secrets.GHA_DOCKERHUB_PUSH_USER }}
         password: ${{ secrets.GHA_KONG_DOCKERHUB_PUSH_TOKEN }}
 
+    # Fallback cache key: ${{env.ebSHA}}-${{env.envoyTag}}
     - name: Build Envoy Deps and export
       uses: docker/build-push-action@v3
       with:
@@ -72,12 +91,19 @@ jobs:
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}
         target: envoy-deps
-        cache-to: type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}}
-        cache-from: type=registry,ref=kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}}
-        tags: kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}}
+        cache-to: |
+          type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
+          type=registry,mode=max,ref=kong/envoy-builds:envoy-deps-${{env.ebSHA}}-${{env.envoyTag}}
+        cache-from: |
+          type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
+        tags: |
+          kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}}
+          kong/envoy-builds:envoy-deps-${{env.ebSHA}}-${{env.envoyTag}}
       env:
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}}
+        ebSHA: ${{needs.metadata.outputs.ebSHA}}
+        bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}
 
   build:
     needs: [metadata, prefetch]
@@ -106,7 +132,9 @@ jobs:
         echo "Build Environment:"
         echo "envoyTag: ${{github.event.inputs.envoyTag}}"
         echo "envoyBuildToolsTag: ${{needs.metadata.outputs.ebToolsTag}}"
-        
+        echo "envoyBuildSHA: ${{needs.metadata.outputs.ebSHA}}"
+        echo "bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}"
+
     - uses: actions/checkout@v3
 
     - name: Maximize build space
@@ -144,7 +172,7 @@ jobs:
       with:
         username: ${{ secrets.GHA_DOCKERHUB_PUSH_USER }}
         password: ${{ secrets.GHA_KONG_DOCKERHUB_PUSH_TOKEN }}
-        
+
     - name: Build and push
       uses: docker/build-push-action@v3
       with:
@@ -161,28 +189,30 @@ jobs:
         platforms: ${{matrix.platforms}}
         target: envoy-build
         cache-to: |
-          type=registry,mode=max,ref=kong/envoy-builds:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}}
+          type=registry,mode=max,ref=kong/envoy-builds:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
         cache-from: |
-          type=registry,ref=kong/envoy-builds:envoy-deps-${{github.sha}}-${{env.envoyTag}} 
-          type=registry,ref=kong/envoy-builds:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}}
-        tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}}
+          type=registry,ref=kong/envoy-builds:envoy-deps-${{env.bazelCacheKey}
+          type=registry,ref=kong/envoy-builds:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+        tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
       env:
         ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || matrix.distro}} 
         registry: kong
         repo: envoy-builds
         envoyTag: ${{github.event.inputs.envoyTag}}
         distro: ${{matrix.distro}}
+        ebSHA: ${{needs.metadata.outputs.ebSHA}}
+        bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}
 
     - uses: jungwinter/split@v2
       id: split
       with:
-        msg: ${{matrix.platforms}}
+        msg: '${{matrix.platforms}}'
         separatorseparator: '/'
 
     # Parse os nad arch from platform
     - name: Zip artifact
       run: |
-        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{github.sha}}-${{env.envoyTag}}-${{env.distro}} \
+        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}} \
         ENVOY_OUT_DIR=${{env.out_dir}} \
         make envoy_bin
         if [[ -f ${{env.out_dir}}/envoy-${{matrix.distro}} ]]; then  

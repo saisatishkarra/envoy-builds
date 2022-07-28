@@ -11,7 +11,6 @@ source $(dirname "${BASH_SOURCE[0]}")/init.sh
 BAZEL_BUILD_OPTIONS=(
     "--curses=no"
     "--verbose_failures"
-    "--//contrib/vcl/source:enabled=false"
     "${BAZEL_BUILD_EXTRA_OPTIONS[@]+"${BAZEL_BUILD_EXTRA_OPTIONS[@]}"}")
 
 pushd "${ENVOY_SOURCE_DIR}"

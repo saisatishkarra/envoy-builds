@@ -66,9 +66,6 @@ BAZEL_BUILD_EXTRA_OPTIONS?=""
 # export DOCKER_BUILD_EXTRA_OPTIONS=("${DOCKER_BUILD_EXTRA_OPTIONS[@]+"${DOCKER_BUILD_EXTRA_OPTIONS[@]}"}")
 
 
-#BUILD_ENVOY_DEPS_SCRIPT:=$(WORK_DIR)/tools/envoy/build_deps.sh
-
-
 # Target 'build/envoy' allows to put Envoy binary under the build/artifacts-$TARGETOS-$TARGETARCH/envoy directory.
 # Depending on the flag BUILD_ENVOY_FROM_SOURCES this target either fetches Envoy from binary registry or
 # builds from sources. It's possible to build binaries for darwin, linux and centos by specifying TARGETOS
@@ -97,6 +94,7 @@ envoy_buildx_setup:
 	docker run --privileged --rm tonistiigi/binfmt --install all
 	docker buildx create --name envoy-builder --bootstrap --use
 
+# TODO: Use local registry cache instead of remote
 .PHONY: envoy_deps
 envoy_deps:
 	docker buildx build \
@@ -119,6 +117,7 @@ envoy_deps:
 # Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
 # BAZEL_BUILD_EXTRA_OPTIONS
 
+# TODO: Use local registry cache instead of remote
 envoy_build: envoy_deps
 	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
 	ENVOY_TAG="${ENVOY_TAG}" \
@@ -161,36 +160,3 @@ envoy_clean:
 	docker buildx stop envoy-builder
 	docker buildx rm envoy-builder
 #docker system prune
-	
-
-# .PHONY: build_envoy
-# build_envoy: inspect
-# 	$(MAKE) build/envoy/artifacts/${TARGETOS}/envoy-${ENVOY_VERSION_TRIMMED}-${DISTRO}-${TARGETARCH}
-
-# build/envoy/artifacts/${TARGETOS}/envoy-${ENVOY_VERSION_TRIMMED}-${DISTRO}-${TARGETARCH}:
-# 	DISTRO=$(DISTRO) \
-# 	ENVOY_OUT=$(ENVOY_OUT) \
-# 	ENVOY_BUILD_TOOLS_DIR=$(ENVOY_BUILD_TOOLS_DIR) \
-# 	BUILD_ENVOY_FROM_SOURCES=$(BUILD_ENVOY_FROM_SOURCES) \
-# 	ENVOY_VERSION_TRIMMED=$(ENVOY_VERSION_TRIMMED) \
-# 	DOCKER_REGISTRY=$(DOCKER_REGISTRY) \
-# 	ifeq ($(BUILD_ENVOY_FROM_SOURCES),true)
-# 		$(MAKE) fetch_envoy_deps
-# 	else
-# 		BINARY_PATH=$@ $(ENVOY_BUILD_TOOLS_DIR)/scripts/fetch_prebuilt_binary.sh
-# 	endif
-
-
-
-#
-# docker image inspect "${LOCAL_BUILD_IMAGE}"
-
-# # copy out the binary
-# id=$(docker create "${LOCAL_BUILD_IMAGE}")
-# docker cp "$id":/envoy-sources/bazel-bin/contrib/exe/envoy-static "${BINARY_PATH}"
-# docker cp "$id":/tmp/profile.gz "${OUT_DIR}/profile.gz"
-# docker rm -v "$id"
-
-# Alpine prefetch: 891 375s
-# Centos prefetch: 891 379s
-# prefetch is the same for any platform and only specific to a target

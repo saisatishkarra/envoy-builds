@@ -10,7 +10,7 @@ import os
 
 # file in format CONTRIB_EXTENSIONS = {...}
 exec(open(os.environ['ENVOY_SOURCE_DIR']+'/contrib/contrib_build_config.bzl').read())
-exec(open(os.environ['ENVOY_SOURCE_DIR']+'/sources/extensions/extensions_build_config.bzl').read())
+exec(open(os.environ['ENVOY_SOURCE_DIR']+'/source/extensions/extensions_build_config.bzl').read())
 
 # By default all contrib are disabled. Use whitelisting to enable
 enable_contrib_extensions = [

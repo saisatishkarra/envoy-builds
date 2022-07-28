@@ -80,7 +80,6 @@ jobs:
         context: .
         push: true
         file: Dockerfile.${{matrix.os}}
-        outputs: type=docker,dest=${{env.ENVOY_DEPS_TAR}}
         no-cache: ${{github.event.inputs.noBuildxCache}}
         build-args: |
           ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}

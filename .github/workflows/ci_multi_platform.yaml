@@ -37,7 +37,7 @@ jobs:
         id: eb_metadata
         run: |
           echo "::set-output name=ebSHA::$(git rev-parse --short HEAD)"
-          echo "::set-output name=bazelCacheKey::${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile')}}-${{github.event.inputs.envoyTag}}"
+          echo "::set-output name=bazelCacheKey::${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile*')}}-${{github.event.inputs.envoyTag}}"
         
   # Always prefetch bazel only for alpine
   prefetch:
@@ -194,8 +194,8 @@ jobs:
         distro: ${{matrix.distro}}
         ebSHA: ${{needs.metadata.outputs.ebSHA}}
         bazelCacheKey: ${{needs.metadata.outputs.bazelCacheKey}}
-        artifactOS: ${{ steps.split.outputs._0 }}
-        artifactArch: ${{ steps.split.outputs._1 }}
+        artifactOS: ${{matrix.os}}
+        artifactArch: ${{matrix.arch}}
 
    
     # Parse os nad arch from platform

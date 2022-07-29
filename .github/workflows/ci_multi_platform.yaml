@@ -127,7 +127,7 @@ jobs:
         #mode: [fips, debug, stripped]
         #include / exlcude combinations
     runs-on: 'ubuntu-latest'
-    continue-on-error: ${{ matrix.allow_failure }}
+    continue-on-error: false
     steps:
     
     - name: Inspect

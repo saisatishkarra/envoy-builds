@@ -117,10 +117,12 @@ jobs:
         bazel_compile_options: [""]
         include:
           - distro: alpine
+            os: [linux]
             arch: amd64
             bazel_compile_mode: opt
             bazel_compile_options: "--define boringssl=fips"
           - distro: alpine
+            os: [linux]
             arch: amd64
             bazel_compile_mode: dbg
             bazel_compile_options: "--define boringssl=fips"

@@ -34,9 +34,9 @@ for k, v in CONTRIB_EXTENSIONS.items():
     )
 
 for k, v in EXTENSIONS.items():
-    desired.append('--{target}:enabled={isDisabled}'.format(
+    desired.append('--{target}:enabled={isEnabled}'.format(
         target=v.split(":")[0],
-        isDisabled=(k in disable_source_extensions))
+        isEnabled=(k not in disable_source_extensions))
     )
 
 print(' '.join(desired))

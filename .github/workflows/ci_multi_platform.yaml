@@ -223,7 +223,7 @@ jobs:
         id=$(docker create ${IMAGE})
         docker cp $id:/app/envoy/bazel-bin/contrib/exe/envoy-static ${{env.out_dir}}/${{env.out_bin}}
         if [[ -f ${{env.out_dir}}/${{env.out_bin}} ]]; then  
-          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{env.distro}}-${{env.artifactOS}}-${{env.artifactArch}}-${{env.bazelCompilationMode}}${{env.out_ext}}.tar.gz .
+          tar -C ${{env.out_dir}} -czvf envoy-${{env.envoyTag}}-${{env.distro}}-${{env.artifactOS}}-${{env.artifactArch}}-${{env.bazelCompilationMode}}${{env.artifactExt}}.tar.gz .
         fi
       env:
         registry: kong
@@ -233,9 +233,9 @@ jobs:
         ebSHA: ${{needs.metadata.outputs.ebSHA}} 
         artifactOS: ${{matrix.os}}
         artifactArch: ${{matrix.arch}}
+        artifactExt: ${{ matrix.bazel_compile_options != '' && '-extended' || '' }}
         out_dir: build/artifacts
         out_bin: envoy-${{matrix.distro}}
-        out_ext: ${{ matrix.bazel_compile_options != '' && '-extended' || '' }}
         bazelCompilationMode: ${{matrix.bazel_compile_mode}}
 
     - name: Save artifact

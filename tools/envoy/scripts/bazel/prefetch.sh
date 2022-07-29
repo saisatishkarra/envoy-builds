@@ -4,7 +4,6 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-
 source ${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/init.sh
 
 BAZEL_STARTUP_OPTIONS=(

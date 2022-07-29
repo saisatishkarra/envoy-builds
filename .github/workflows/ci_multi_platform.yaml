@@ -37,7 +37,7 @@ jobs:
         id: eb_metadata
         run: |
           echo "::set-output name=ebSHA::$(git rev-parse --short HEAD)"
-          echo "::set-output name=bazelCacheKey::-${{github.event.inputs.envoyTag}}-${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile*')}}"
+          echo "::set-output name=bazelCacheKey::${{github.event.inputs.envoyTag}}-${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile*')}}"
         
   # Always prefetch bazel only for alpine
   prefetch:

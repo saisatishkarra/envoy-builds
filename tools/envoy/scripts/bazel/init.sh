@@ -2,7 +2,7 @@
 
 set -o errexit
 set -o pipefail
-set -o nounsets
+set -o nounset
 
 # Expose Distro specific Bazel Build Options
 #source "${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel_env/${DISTRO}.sh"

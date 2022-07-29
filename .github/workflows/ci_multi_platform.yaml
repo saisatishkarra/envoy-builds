@@ -37,7 +37,7 @@ jobs:
         id: eb_metadata
         run: |
           echo "::set-output name=ebSHA::$(git rev-parse --short HEAD)"
-          echo "::set-output name=bazelCacheKey::${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile*')}}-${{github.event.inputs.envoyTag}}"
+          echo "::set-output name=bazelCacheKey::-${{github.event.inputs.envoyTag}}-${{hashFiles('tools/envoy/**/*.sh', 'tools/envoy/util/extensions.py', 'Dockerfile*')}}"
         
   # Always prefetch bazel only for alpine
   prefetch:
@@ -74,11 +74,11 @@ jobs:
         password: ${{ secrets.GHA_KONG_DOCKERHUB_PUSH_TOKEN }}
 
     # Fallback cache key: ${{env.ebSHA}}-${{env.envoyTag}}
-    - name: Build Envoy Deps and export
+    - name: Build Envoy Deps and export cache
       uses: docker/build-push-action@v3
       with:
         context: .
-        push: true
+        push: false
         file: Dockerfile.${{matrix.os}}
         no-cache: ${{github.event.inputs.noBuildxCache}}
         build-args: |
@@ -99,13 +99,6 @@ jobs:
 
   build:
     needs: [metadata, prefetch]
-    env:
-      BAZEL_BUILD_EXTRA_OPTIONS: >-
-        --discard_analysis_cache 
-        --nostamp 
-        --nouse_action_cache
-        --io_nice_level=4
-      ENVOY_DEPS_TAR: /tmp/envoy-deps.tar
     strategy:
       fail-fast: false
       matrix:
@@ -181,8 +174,7 @@ jobs:
     - name: Build and push
       uses: docker/build-push-action@v3
       with:
-        push: false
-        load: true
+        push: true
         no-cache: ${{github.event.inputs.noBuildxCache}}
         context: .
         file: Dockerfile.${{env.artifactOS}}
@@ -196,11 +188,11 @@ jobs:
         platforms: ${{matrix.os}}/${{matrix.arch}}
         target: envoy-build
         cache-to: |
-          type=registry,mode=max,ref=kong/envoy-builds-cache:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+          type=registry,mode=max,ref=kong/envoy-builds-cache:envoy-builds-${{env.distro}}-${{env.bazelCompilationMode}}${{env.artifactExt}}-${{env.bazelCacheKey}}
         cache-from: |
           type=registry,ref=kong/envoy-builds-cache:envoy-deps-${{env.bazelCacheKey}}
-          type=registry,ref=kong/envoy-builds-cache:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
-        tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+          type=registry,ref=kong/envoy-builds-cache:envoy-builds-${{env.distro}}-${{env.bazelCompilationMode}}${{env.artifactExt}}-${{env.bazelCacheKey}}
+        tags: ${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}-${{env.bazelCompilationMode}}${{env.artifactExt}}
       env:
         ebToolsImgBaseVariant: ${{matrix.distro == 'darwin' && 'alpine' || matrix.distro}} 
         registry: kong
@@ -218,12 +210,14 @@ jobs:
           --nouse_action_cache
           ${{matrix.bazel_compile_options}}
         bazelCompilationMode: ${{matrix.bazel_compile_mode}}
+        artifactExt: ${{ matrix.bazel_compile_options != '' && '-extended' || '' }}
 
    
     # Parse os nad arch from platform
     - name: Zip artifact
       run: |
-        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}
+        IMAGE=${{env.registry}}/${{env.repo}}:envoy-builds-${{env.ebSHA}}-${{env.envoyTag}}-${{env.distro}}-${{env.bazelCompilationMode}}${{env.artifactExt}}
+        docker pull ${IMAGE}
         docker inspect ${IMAGE} 
         mkdir -p ${{env.out_dir}}
         id=$(docker create ${IMAGE})

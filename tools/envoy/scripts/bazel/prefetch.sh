@@ -3,7 +3,7 @@
 set -o errexit
 set -o pipefail
 set -o nounset
-set -x
+
 
 source ${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/init.sh
 

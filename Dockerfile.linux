@@ -1,6 +1,4 @@
 ARG ENVOY_BUILD_TOOLS_TAG
-ARG BAZEL_BUILD_EXTRA_OPTIONS
-ARG BAZEL_COMPILATION_MODE?=opt
 
 # Possible values: alpine, centos, windows
 # For darwin distro: Cross Compiled against alpine as default base variant unless overridden
@@ -83,6 +81,8 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG DISTRO
 ARG ENVOY_TAG
+ARG BAZEL_BUILD_EXTRA_OPTIONS
+ARG BAZEL_COMPILATION_MODE
 ENV DISTRO=$DISTRO
 ENV ENVOY_TAG=$ENVOY_TAG
 ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output

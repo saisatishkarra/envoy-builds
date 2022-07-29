@@ -4,8 +4,6 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-set -x
-
 source $(dirname "${BASH_SOURCE[0]}")/init.sh
 
 BAZEL_BUILD_OPTIONS=(

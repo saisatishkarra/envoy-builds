@@ -73,7 +73,8 @@ CACHE_REPO=envoy-builds-cache
 CACHE_IMAGE_NAME=$(REGISTRY)/$(CACHE_REPO)
 ARTIFACT_IMAGE_NAME=$(REGISTRY)/$(ARTIFACT_REPO)
 CACHE_TAG=$(ENVOY_BUILDS_VERSION)-$(ENVOY_VERSION_TRIMMED)
-ARTIFACT_TAG=$(ENVOY_BUILDS_VERSION)-$(ENVOY_VERSION_TRIMMED)-$(ENVOY_BUILDS_OUT_METADATA)
+ARTIFACT_TAG=$$(ENVOY_BUILDS_VERSION)-$(ENVOY_VERSION_TRIMMED)-$(ENVOY_BUILDS_OUT_METADATA)
+
 
 #####################################################################
 
@@ -128,10 +129,11 @@ $(1): $(eval $(call docker_envoy_env, $(1)))
 		--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
 		--target=$(2) \
 		--platform=${ENVOY_TARGET_ARTIFACT_OS}/${ENVOY_TARGET_ARTIFACT_ARCH} \
-		-t $($(3)_IMAGE_NAME):$(2)-$$($(3)_TAG) .
+		-t $($(3)_IMAGE_NAME):$(2)-${$(3)_TAG} .
 endef
 
 #################################################################
+
 # Build Envoy using on host (Only supports linux, darwin runners for now)
 .PHONY: clone/envoy
 clone/envoy: $(eval $(call local_envoy_env,clone/envoy))

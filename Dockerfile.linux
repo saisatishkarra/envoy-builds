@@ -83,7 +83,7 @@ COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/prefetch $BAZEL_DEPS
 # LLVM script is not needed for windows
 
 
-# For ENVOY_TARGET_ARTIFACT_OS=darwins
+# For ENVOY_TARGET_ARTIFACT_OS=darwin
 # FROM --platform=$BUILDPLATFORM envoy-build-linux as envoy-build-darwin
 # USER envoy
 # COPY --chown=envoy:envoy --from=crazymax/osxcross:latest /osxcross /osxcross
@@ -97,7 +97,7 @@ COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/prefetch $BAZEL_DEPS
 # bazel ENVOY_TARGET_ARTIFACT_DISTRO specific build flags
 # ENVOY_TARGET_ARTIFACT_DISTRO= alpine / centos for linux os, darwin for darwin os
 
-FROM envoy-build-$ENVOY_TARGET_ARTIFACT_OS as envoy-build
+FROM envoy-build-$TARGETOS as envoy-build
 ARG TARGETPLATFORM
 ARG ENVOY_TARGET_ARTIFACT_OS
 ARG ENVOY_TARGET_ARTIFACT_ARCH

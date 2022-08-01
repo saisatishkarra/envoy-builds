@@ -43,3 +43,23 @@ When building from sources using dockerfile:
 ```shell
 $ TARGETOS=linux TARGETARCH=amd64 DISTRO=centos ENVOY_TAG=v1.22.0 TARGET=envoy-build BUILD_ENVOY_FROM_SOURCES=true make inspect_envoy_image
 ```
+
+
+
+#   docker buildx build \
+# 	-f Dockerfile.linux \
+# 	--load \
+# 	--build-arg WORKDIR=${WORKDIR} \
+# 	--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
+# 	--build-arg ENVOY_TAG=${ENVOY_TAG} \
+# 	--build-arg ENVOY_TARGET_ARTIFACT_OS=${ENVOY_TARGET_ARTIFACT_OS} \
+# 	--build-arg ENVOY_TARGET_ARTIFACT_ARCH=${ENVOY_TARGET_ARTIFACT_ARCH} \
+# 	--build-arg ENVOY_TARGET_ARTIFACT_DISTRO=${ENVOY_TARGET_ARTIFACT_DISTRO} \
+# 	--build-arg BAZEL_DEPS_BASE_DIR=${BAZEL_DEPS_BASE_DIR} \
+# 	--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+# 	--build-arg BAZEL_COMPILATION_MODE=${BAZEL_COMPILATION_MODE} \
+# 	--build-arg ENVOY_BUILDS_SCRIPT_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+# 	--build-arg ENVOY_SOURCE_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+# 	--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
+# 	--target=$(1) \
+# 	-t ${$(2)_IMAGE_NAME}:$(1)-${$(2)_TAG} .

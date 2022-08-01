@@ -2,7 +2,7 @@
 
 set -o errexit
 set -o pipefail
-set -o nounsets
+set -o nounset
 
 source $(dirname "${BASH_SOURCE[0]}")/init.sh
 

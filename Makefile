@@ -1,73 +1,82 @@
 SUPPORTED_OS:= linux darwin windows
-SUPPORTED_LINUX_DISTROS:= alpine centos
 SUPPORTED_ARCH:= amd64 arm64
-
-ifndef TARGETOS
-	$(error TARGETOS is required)
-endif
-
-ifndef TARGETARCH
-	$(error TARGETARCH is required)
-endif
+SUPPORTED_LINUX_DISTROS = alpine centos
+DOCKERFILE_TARGET?=envoy-build
 
 ifndef ENVOY_TAG
 	$(error ENVOY_TAG (vX.Y.Z) is required)
 endif
 
-ifneq ($(TARGETARCH), $(filter $(TARGETARCH), $(SUPPORTED_ARCH)))
-	$(error TARGETARCH must be one of $(SUPPORTED_ARCH)) 
+ifndef ENVOY_TARGET_ARTIFACT_OS
+	$(error ENVOY_TARGET_ARTIFACT_OS is required)
 endif
 
-ifneq ($(TARGETOS), $(filter $(TARGETOS), $(SUPPORTED_OS)))
-	$(error TARGETOS must be one of $(SUPPORTED_OS)) 
+ifneq ($(ENVOY_TARGET_ARTIFACT_OS), $(filter $(ENVOY_TARGET_ARTIFACT_OS), $(SUPPORTED_OS)))
+	$(error ENVOY_TARGET_ARTIFACT_OS must be one of $(SUPPORTED_OS)) 
 endif
-		
-ifeq ($(TARGETOS), linux)
-	ifndef DISTRO
-		$(error DISTRO is required. One of:$(SUPPORTED_LINUX_DISTROS))
+
+ifndef ENVOY_TARGET_ARTIFACT_ARCH
+	$(error ENVOY_TARGET_ARTIFACT_ARCH is required)
+endif
+
+ifneq ($(ENVOY_TARGET_ARTIFACT_ARCH), $(filter $(ENVOY_TARGET_ARTIFACT_ARCH), $(SUPPORTED_ARCH)))
+	$(error ENVOY_TARGET_ARTIFACT_ARCH must be one of $(SUPPORTED_ARCH)) 
+endif
+
+ifeq ($(ENVOY_TARGET_ARTIFACT_OS), linux)
+	ENVOY_TARGET_ARTIFACT_DISTRO?=alpine
+	ifneq ($(ENVOY_TARGET_ARTIFACT_DISTRO), $(filter $(ENVOY_TARGET_ARTIFACT_DISTRO),$(SUPPORTED_LINUX_DISTROS)))
+		$(error ENVOY_TARGET_ARTIFACT_DISTRO must be one of $(SUPPORTED_LINUX_DISTROS)) 
 	endif
-	ifeq ($(DISTRO), $(filter $(DISTRO),$(SUPPORTED_LINUX_DISTROS)))
-		ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)
-	endif
-else ifeq ($(TARGETOS), darwin)
-# Use alpine as envoy build tools base for cross compiling darwin	
-	DISTRO=$(TARGETOS)
-	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="alpine"
-else 
-# Windows
-	DISTRO=$(TARGETOS)
-	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=$(DISTRO)
+else
+	ENVOY_TARGET_ARTIFACT_DISTRO=$(ENVOY_TARGET_ARTIFACT_OS)
 endif
 
-WORK_DIR?= $(shell pwd)
-ENVOY_BUILD_TOOLS_DIR?=${WORK_DIR}/tools/envoy
-# Envoy buils tools image is not provided for darwin. Needs to be overriden for darwin
-VERSION_CMD="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/$(ENVOY_TAG)/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
-ENVOY_BUILD_TOOLS_TAG=$(shell eval ${VERSION_CMD})
-ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILD_TOOLS_DIR)/scripts/version.sh ${ENVOY_TAG})
-BUILD_ENVOY_FROM_SOURCES?=false
+# Set WORK_DIR when running with docker
+WORK_DIR?=$(shell pwd)
 
-ENVOY_OUT_DIR?=${WORK_DIR}/build/artifacts-$(TARGETOS)-$(TARGETARCH)/envoy
-ENVOY_OUT_BIN=envoy-$(DISTRO)
-BUILD_TOOLS_SHA?=$$(git rev-parse --short HEAD)
+# ENVOYPROXY/ENVOY-BUILD-TOOLS REPOS
+envoy_build_tools_version_cmd="curl --fail --location --silent https://raw.githubusercontent.com/envoyproxy/envoy/$(ENVOY_TAG)/.bazelrc | grep envoyproxy/envoy-build-ubuntu | sed -e 's\#.*envoyproxy/envoy-build-ubuntu:\(.*\)\#\1\#' | uniq"
+ENVOY_BUILD_TOOLS_VERSION=$(shell eval ${envoy_build_tools_version_cmd})
 
-# TODO: Use local registry instead of remote dockerhub
-REGISTRY_PORT=5002
-#localhost:$(REGISTRY_PORT)
+# KONG/ENVOY-BUILDS REPO
+ENVOY_BUILDS_SCRIPT_DIR?=${WORK_DIR}/tools/envoy
+ENVOY_BUILDS_VERSION=$$(git rev-parse --short HEAD)	
+
+# ENVOYPROXY/ENVOY REPO
+ENVOY_SOURCE_DIR?=${TMPDIR}/envoyproxy/envoy
+ifndef TMPDIR
+	ENVOY_SOURCE_DIR ?= /tmp/envoyproxy/envoy
+endif
+ENVOY_VERSION_TRIMMED=$(shell $(ENVOY_BUILDS_SCRIPT_DIR)/scripts/version.sh ${ENVOY_TAG})
+ENVOY_BUILD_FROM_SOURCES?=false
+
+# BAZEL OPTIONS
+# Defaults are set within the build scripts
+BAZEL_DEPS_BASE_DIR=${ENVOY_SOURCE_DIR}/bazel/prefetch
+BAZEL_BUILD_EXTRA_OPTIONS?=""
+BAZEL_COMPILATION_MODE?=opt
+
+# ENVOY BUILD ARTIFACTS
+ENVOY_BUILDS_OUT_DIR?=${WORK_DIR}/build/artifacts
+ENVOY_BUILDS_OUT_BIN=envoy-$(ENVOY_VERSION_TRIMMED)-$(ENVOY_TARGET_ARTIFACT_OS)-$(ENVOY_TARGET_ARTIFACT_ARCH)
+# Binary metadata when built from sources
+ENVOY_BUILDS_OUT_METADATA=${ENVOY_TARGET_ARTIFACT_DISTRO}-${BAZEL_COMPILATION_MODE}
+ifneq ($(BAZEL_BUILD_EXTRA_OPTIONS), "")
+	ENVOY_BUILDS_OUT_METADATA=${ENVOY_BUILDS_OUT_METADATA}-extended
+endif
+
+# Dockerhub registry cache for KONG/ENVOY-BUILDS
 REGISTRY?=kong
 ARTIFACT_REPO=envoy-builds
 CACHE_REPO=envoy-builds-cache
 
 CACHE_IMAGE_NAME=$(REGISTRY)/$(CACHE_REPO)
 ARTIFACT_IMAGE_NAME=$(REGISTRY)/$(ARTIFACT_REPO)
-TAG_METADATA=$(BUILD_TOOLS_SHA)-$(ENVOY_TAG)
+CACHE_TAG=${ENVOY_BUILDS_VERSION}-$(ENVOY_VERSION_TRIMMED)
+ARTIFACT_TAG=${ENVOY_BUILDS_VERSION}-$(ENVOY_VERSION_TRIMMED)-${ENVOY_BUILDS_OUT_METADATA}
 
-BAZEL_BUILD_EXTRA_OPTIONS?=""
-
-# DOCKER_BUILD_EXTRA_OPTIONS=${DOCKER_BUILD_EXTRA_OPTIONS:-""}
-# read -ra DOCKER_BUILD_EXTRA_OPTIONS <<< "${DOCKER_BUILD_EXTRA_OPTIONS}"
-# export DOCKER_BUILD_EXTRA_OPTIONS=("${DOCKER_BUILD_EXTRA_OPTIONS[@]+"${DOCKER_BUILD_EXTRA_OPTIONS[@]}"}")
-
+#####################################################################
 
 # Target 'build/envoy' allows to put Envoy binary under the build/artifacts-$TARGETOS-$TARGETARCH/envoy directory.
 # Depending on the flag BUILD_ENVOY_FROM_SOURCES this target either fetches Envoy from binary registry or
@@ -75,81 +84,142 @@ BAZEL_BUILD_EXTRA_OPTIONS?=""
 # and ENVOY_DISTRO variables. Envoy version could be specified by ENVOY_TAG that accepts git tag or commit
 # hash values.
 
-.PHONY: envoy_registry
-envoy_registry:
-	REGISTRY_PORT=$(REGISTRY_PORT) \
-	docker run -d -p $(REGISTRY_PORT):5000 --restart=always --name registry registry:2
+.PHONY: build/envoy
+build/envoy:
+	ENVOY_TAG=${ENVOY_TAG} \
 
-.PHONY: envoy_buildx_setup
+	ENVOY_TARGET_ARTIFACT_OS=${ENVOY_TARGET_ARTIFACT_OS} \
+	ENVOY_TARGET_ARTIFACT_ARCH=${ENVOY_TARGET_ARTIFACT_ARCH} \
+	ENVOY_TARGET_ARTIFACT_DISTRO=${ENVOY_TARGET_ARTIFACT_DISTRO} \
+
+	BAZEL_DEPS_BASE_DIR=${BAZEL_DEPS_BASE_DIR} \
+	BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+	BAZEL_COMPILATION_MODE=${BAZEL_COMPILATION_MODE} \
+
+	ENVOY_BUILDS_SCRIPT_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+	
+	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
+	ENVOY_VERSION_TRIMMED=${ENVOY_VERSION_TRIMMED} \
+	ENVOY_BUILD_FROM_SOURCES=${ENVOY_BUILD_FROM_SOURCES} \
+
+	ENVOY_BUILDS_OUT_DIR=${ENVOY_BUILDS_OUT_DIR} \
+	ENVOY_BUILDS_OUT_BIN=${ENVOY_BUILDS_OUT_BIN} \
+	ENVOY_BUILDS_OUT_METADATA=${ENVOY_BUILDS_OUT_METADATA} \
+
+	ifeq ($(ENVOY_BUILD_FROM_SOURCES),true)
+		BINARY_PATH=${ENVOY_BUILDS_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN}-${ENVOY_BUILDS_OUT_METADATA} \
+		${ENVOY_BUILDS_SCRIPT_DIR}/scripts/clone.sh
+		${ENVOY_BUILDS_SCRIPT_DIR}/scripts/bazel/${ENVOY_TARGET_ARTIFACT_DISTRO}.sh
+		$(MAKE) ${ENVOY_BUILDS_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN}-${ENVOY_BUILDS_OUT_METADATA}
+	else
+		BINARY_PATH=${ENVOY_BUILDS_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN} \
+		${ENVOY_BUILDS_SCRIPT_DIR}/scripts/fetch_prebuilt_binary.sh
+	endif
+
+
+${ENVOY_BUILDS_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN}-${ENVOY_BUILDS_OUT_METADATA}:
+	cp ${ENVOY_SOURCE_DIR}/bazel-bin/contrib/exe/envoy-static $@
+
+.PHONY: clean/envoy
+clean/envoy:
+	ENVOY_BUILDS_OUT_DIR=${ENVOY_BUILDS_OUT_DIR} \
+	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
+	rm -rf ${ENVOY_BUILDS_OUT_DIR}
+	rm -rf ${ENVOY_SOURCE_DIR}
+	docker buildx stop envoy-builder
+	docker buildx rm envoy-builder
+
+.PHONY: setup/buildx
 envoy_buildx_setup:
 	docker run --privileged --rm tonistiigi/binfmt --install all
 	docker buildx create --name envoy-builder --bootstrap --use
 
 # TODO: Use local registry cache instead of remote
-.PHONY: envoy_deps
-envoy_deps:
-	docker buildx build \
-		-f Dockerfile \
-		--push \
-		--build-arg DISTRO=${DISTRO} \
-		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
-		--build-arg ENVOY_TAG=${ENVOY_TAG} \
-		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
-		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
-		--cache-to=type=registry,mode=max,ref=${CACHE_IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
-		--cache-from=type=registry,ref=${CACHE_IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
-		--target=envoy-deps \
-		-t ${IMAGE_NAME}:envoy-deps-${TAG_METADATA} .
+.PHONY: docker/envoy-build
+docker/envoy-build:
 
-.PHONY: envoy_image
+	WORK_DIR=${WORK_DIR} \
 
-# Figure out a way to pass DOCKER_BUILD_EXTRA_OPTIONS to buildkit
-# --add-host # network #s3 cache container
-# Figure out a way to pass BAZEL_COMPILATION_MODE to buildkit
-# BAZEL_BUILD_EXTRA_OPTIONS
+	ENVOY_BUILD_TOOLS_VERSION="${ENVOY_BUILD_TOOLS_VERSION}" \
 
-# TODO: Use local registry cache instead of remote
-envoy_build: envoy_deps
-	ENVOY_BUILD_TOOLS_TAG="${ENVOY_BUILD_TOOLS_TAG}" \
-	ENVOY_TAG="${ENVOY_TAG}" \
-	TARGET="${TARGET}" \
-	DISTRO="${DISTRO}" \
-	TAG_METADATA="${TAG_METADATA}" \
-	ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT="${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT}" \
-	docker buildx build \
-		-f Dockerfile \
-		--push \
-		--build-arg DISTRO=${DISTRO} \
-		--build-arg ENVOY_BUILD_TOOLS_TAG=${ENVOY_BUILD_TOOLS_TAG} \
-		--build-arg ENVOY_TAG=${ENVOY_TAG} \
-		--build-arg ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT} \
-		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
-		--cache-to=type=registry,mode=max,ref=${CACHE_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
-		--cache-from=type=registry,ref=${CACHE_IMAGE_NAME}:envoy-deps-${TAG_METADATA} \
-		--cache-from=type=registry,ref=${CACHE_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} \
-		--platform=${TARGETOS}/${TARGETARCH} \
-		--target=envoy-build \
-		-t ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO} .
+	ENVOY_TAG=${ENVOY_TAG} \
 
-.PHONY: inspect_envoy_image
-inspect_envoy_image: envoy_build
-	docker image inspect ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}
+	ENVOY_TARGET_ARTIFACT_OS=${ENVOY_TARGET_ARTIFACT_OS} \
+	ENVOY_TARGET_ARTIFACT_ARCH=${ENVOY_TARGET_ARTIFACT_ARCH} \
+	ENVOY_TARGET_ARTIFACT_DISTRO=${ENVOY_TARGET_ARTIFACT_DISTRO} \
+
+	BAZEL_DEPS_BASE_DIR=${BAZEL_DEPS_BASE_DIR} \
+	BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+	BAZEL_COMPILATION_MODE=${BAZEL_COMPILATION_MODE} \
+
+	ENVOY_BUILDS_SCRIPT_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
 	
-.PHONY: envoy_bin
-envoy_bin:
-	DISTRO="${DISTRO}" \
-	ENVOY_TAG="${ENVOY_TAG}" \
+	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
+
+	CACHE_IMAGE_NAME=${CACHE_IMAGE_NAME} \
+	ARTIFACT_IMAGE_NAME=${ARTIFACT_IMAGE_NAME} \
+
+	CACHE_TAG=${CACHE_TAG} \
+	ARTIFACT_TAG=${ARTIFACT_TAG} \
+
+	$(MAKE) docker/envoy-deps
+
+	docker buildx build \
+		-f $(DOCKERFILE) \
+		--load \
+		--build-arg WORKDIR=${WORKDIR} \
+		--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
+		--build-arg ENVOY_TAG=${ENVOY_TAG} \
+		--build-arg ENVOY_TARGET_ARTIFACT_OS=${ENVOY_TARGET_ARTIFACT_OS} \
+		--build-arg ENVOY_TARGET_ARTIFACT_ARCH=${ENVOY_TARGET_ARTIFACT_ARCH} \
+		--build-arg ENVOY_TARGET_ARTIFACT_DISTRO=${ENVOY_TARGET_ARTIFACT_DISTRO} \
+		--build-arg BAZEL_DEPS_BASE_DIR=${BAZEL_DEPS_BASE_DIR} \
+		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+		--build-arg BAZEL_COMPILATION_MODE=${BAZEL_COMPILATION_MODE} \
+		--build-arg ENVOY_BUILDS_SCRIPT_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+		--build-arg ENVOY_SOURCE_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+		--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
+		--target=envoy-build \
+		-t ${ARTIFACT_IMAGE_NAME}:envoy-build-${ARTIFACT_TAG} .
+
+	$(MAKE) inspect/envoy-image
+
+	$(MAKE) extract/envoy-binary
+
+
+.PHONY: docker/envoy-deps
+docker/envoy-deps: 
+	$(MAKE) setup/buildx
+	docker buildx build \
+		-f $(DOCKERFILE) \
+		--load \
+		--build-arg WORKDIR=${WORKDIR} \
+		--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
+		--build-arg ENVOY_TAG=${ENVOY_TAG} \
+		--build-arg ENVOY_TARGET_ARTIFACT_OS=${ENVOY_TARGET_ARTIFACT_OS} \
+		--build-arg ENVOY_TARGET_ARTIFACT_ARCH=${ENVOY_TARGET_ARTIFACT_ARCH} \
+		--build-arg ENVOY_TARGET_ARTIFACT_DISTRO=${ENVOY_TARGET_ARTIFACT_DISTRO} \
+		--build-arg BAZEL_DEPS_BASE_DIR=${BAZEL_DEPS_BASE_DIR} \
+		--build-arg BAZEL_BUILD_EXTRA_OPTIONS=${BAZEL_BUILD_EXTRA_OPTIONS} \
+		--build-arg BAZEL_COMPILATION_MODE=${BAZEL_COMPILATION_MODE} \
+		--build-arg ENVOY_BUILDS_SCRIPT_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+		--build-arg ENVOY_SOURCE_DIR=${ENVOY_BUILDS_SCRIPT_DIR} \
+		--build-arg ENVOY_BUILD_TOOLS_VERSION=${ENVOY_BUILD_TOOLS_VERSION} \
+		--target=envoy-deps\
+		-t ${CACHE_IMAGE_NAME}:envoy-deps-${CACHE_TAG} .
+
+.PHONY: inspect/envoy-image
+inspect/envoy-image:
+	docker image inspect ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}
+	
+.PHONY: extract/envoy-binary
+extract/envoy-binary:
+	ENVOY_BUILDS_OUT_DIR=${ENVOY_BUILDS_OUT_DIR} \
+	ENVOY_BUILDS_OUT_BIN=${ENVOY_BUILDS_OUT_BIN} \
+	ENVOY_BUILDS_OUT_METADATA=${ENVOY_BUILDS_OUT_METADATA} \
 	mkdir -p ${ENVOY_OUT_DIR}
-	id=$$(docker create ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}-${DISTRO}) \
-	docker cp $id:/app/envoy/bazel-bin/contrib/exe/envoy-static ${ENVOY_OUT_DIR}/${ENVOY_OUT}
+	id=$$(docker create ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}) \
+	docker cp ${id}:${ENVOY_SOURCE_DIR}/bazel-bin/contrib/exe/envoy-static ${ENVOY_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN}-${ENVOY_BUILDS_OUT_METADATA}
 
 
-.PHONY: clean_envoy
-envoy_clean:
-	ENVOY_OUT=$(ENVOY_OUT_DIR) \
-	rm -rf ${ENVOY_OUT_DIR}
-	rm -rf ${ENVOY_BAZEL_OUTPUT_BASE_DIR}
-	docker buildx stop envoy-builder
-	docker buildx rm envoy-builder
-#docker system prune
-#docker rm -v $id
+

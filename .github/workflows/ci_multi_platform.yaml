@@ -82,7 +82,7 @@ jobs:
         file: Dockerfile.${{matrix.os}}
         no-cache: ${{github.event.inputs.noBuildxCache}}
         build-args: |
-          ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
+          ENVOY_BUILD_TOOLS_VERSION=${{needs.metadata.outputs.ebToolsTag}}
           ENVOY_TAG=${{env.envoyTag}}
         target: envoy-deps
         cache-to: |
@@ -179,7 +179,7 @@ jobs:
         context: .
         file: Dockerfile.${{env.artifactOS}}
         build-args: |
-          ENVOY_BUILD_TOOLS_TAG=${{needs.metadata.outputs.ebToolsTag}}
+          ENVOY_BUILD_TOOLS_VERSION=${{needs.metadata.outputs.ebToolsTag}}
           ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=${{env.ebToolsImgBaseVariant}}
           ENVOY_TAG=${{env.envoyTag}}
           DISTRO=${{env.distro}}

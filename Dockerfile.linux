@@ -1,7 +1,7 @@
-ARG ENVOY_BUILD_TOOLS_TAG
+ARG ENVOY_BUILD_TOOLS_VERSION
 
 # Possible values: alpine, centos, windows
-# For darwin distro: Cross Compiled against alpine as default base variant unless overridden
+# For darwin ENVOY_TARGET_ARTIFACT_DISTRO: Cross Compiled against alpine as default base variant unless overridden
 ARG ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT=alpine
 ####################################################################################
 # Pre Requisites Section
@@ -17,13 +17,16 @@ RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
 
 FROM --platform=$BUILDPLATFORM deps as base
 USER envoy
-WORKDIR /app
+ARG WORKDIR
+ARG ENVOY_BUILDS_SCRIPT_DIR
+ARG ENVOY_SOURCE_DIR
 ARG ENVOY_TAG
-ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
-ENV ENVOY_SOURCE_DIR=/app/envoy
+WORKDIR $WORKDIR
+ENV ENVOY_BUILDS_SCRIPT_DIR=$ENVOY_BUILDS_SCRIPT_DIR
+ENV ENVOY_SOURCE_DIR=$ENVOY_SOURCE_DIR
 ENV ENVOY_TAG=$ENVOY_TAG
-COPY --chown=envoy:envoy tools/envoy $ENVOY_BUILD_TOOLS_DIR
-RUN $ENVOY_BUILD_TOOLS_DIR/scripts/clone.sh
+COPY --chown=envoy:envoy tools/envoy $ENVOY_BUILDS_SCRIPT_DIR
+RUN $ENVOY_BUILDS_SCRIPT_DIR/scripts/clone.sh
 
 FROM --platform=$BUILDPLATFORM base as bazelisk-cache
 RUN cd $ENVOY_SOURCE_DIR && bazel version
@@ -31,37 +34,56 @@ RUN cd $ENVOY_SOURCE_DIR && bazel version
 ####################################################################################
 # Builders section
 
-FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-ubuntu:$ENVOY_BUILD_TOOLS_TAG as envoy-alpine-builder
-FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-centos:$ENVOY_BUILD_TOOLS_TAG as envoy-centos-builder
+FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-ubuntu:$ENVOY_BUILD_TOOLS_VERSION as envoy-alpine-base-builder
+FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-centos:$ENVOY_BUILD_TOOLS_VERSION as envoy-centos-base-builder
+FROM --platform=$BUILDPLATFORM envoyproxy/envoy-build-windows2019:$ENVOY_BUILD_TOOLS_VERSION as envoy-windows-base-builder
 
-FROM --platform=$BUILDPLATFORM envoy-$ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT-builder as envoy-builder
+FROM --platform=$BUILDPLATFORM envoy-$ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT-base-builder as envoy-linux-builder
 RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
 USER envoy
-WORKDIR /app/envoy
-ENV ENVOY_BUILD_TOOLS_DIR=/app/envoy-builds/tools/envoy
-ENV ENVOY_SOURCE_DIR=/app/envoy
-COPY --chown=envoy:envoy --from=base /app/envoy /app/envoy
-COPY --chown=envoy:envoy --from=base /app/envoy-builds /app/envoy-builds
+ARG WORKDIR
+ARG ENVOY_BUILDS_SCRIPT_DIR
+ARG ENVOY_SOURCE_DIR
+WORKDIR $WORKDIR
+ENV ENVOY_BUILDS_SCRIPT_DIR=$ENVOY_BUILDS_SCRIPT_DIR
+ENV ENVOY_SOURCE_DIR=$ENVOY_SOURCE_DIR
+COPY --chown=envoy:envoy --from=base $ENVOY_SOURCE_DIR $ENVOY_SOURCE_DIRS
+COPY --chown=envoy:envoy --from=base $ENVOY_BUILDS_SCRIPT_DIR $ENVOY_BUILDS_SCRIPT_DIR
 COPY --chown=envoy:envoy --from=bazelisk-cache /home/envoy/.cache/bazelisk /home/envoy/.cache/bazelisk
 COPY --chown=envoy:envoy --from=bazelisk-cache /usr/local/bin/bazel /usr/local/bin/bazel
 
+FROM --platform=$BUILDPLATFORM envoy-windows-base-builder as envoy-windows-builder
+RUN groupadd -r envoy && useradd -rms /bin/bash -g envoy envoy
+USER envoy
+# windows paths for above stage
+
 ####################################################################################
 
-# TODO: Setup gcc libraries to prefetch bazel in base-builder
+# TODO: Setup gcc libraries to prefetch bazel in base-linux-builder
 # Solve: Pre fetch OS Independent bazel depedencies for specific envoy target against default ubuntu base variant
-FROM --platform=$BUILDPLATFORM envoy-builder as envoy-deps
-USER envoy
-ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
-RUN $ENVOY_BUILD_TOOLS_DIR/scripts/bazel/prefetch.sh
+FROM --platform=$BUILDPLATFORM envoy-linux-builder as envoy-deps
+ENV BAZEL_DEPS_BASE_DIR=/tmp/envoy/bazel/prefetch
+RUN $ENVOY_BUILDS_SCRIPT_DIR/scripts/bazel/prefetch.sh
 
-# For TARGETOS=linux
-# ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
-FROM --platform=$BUILDPLATFORM envoy-builder as envoy-build-linux
-ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
-COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/bazel/output
+# For ENVOY_TARGET_ARTIFACT_OS=linux
+FROM --platform=$BUILDPLATFORM envoy-linux-builder as envoy-build-linux
+ARG BAZEL_DEPS_BASE_DIR
+ENV BAZEL_DEPS_BASE_DIR=$BAZEL_DEPS_BASE_DIR
+COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/prefetch $BAZEL_DEPS_BASE_DIR
+# TODO: Only run for centos ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT instead of all linux variants
+RUN bash -c "$ENVOY_SOURCE_DIR/bazel/setup_clang.sh /opt/llvm"
 
-# For TARGETOS=darwin
-# ENVOY_BUILD_TOOLS_IMAGE_BASE_VARIANT: alpine (default) / centos. 
+# For ENVOY_TARGET_ARTIFACT_OS=windows
+FROM --platform=$BUILDPLATFORM envoy-windows-builder as envoy-build-windows
+ARG BAZEL_DEPS_BASE_DIR
+ENV BAZEL_DEPS_BASE_DIR=$BAZEL_DEPS_BASE_DIR
+# windows paths for above stage still using envoy-linux-deps as stage
+# ENV BAZEL_DEPS_BASE_DIR=<replace windows path>
+COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/prefetch $BAZEL_DEPS_BASE_DIR
+# LLVM script is not needed for windows
+
+
+# For ENVOY_TARGET_ARTIFACT_OS=darwins
 # FROM --platform=$BUILDPLATFORM envoy-build-linux as envoy-build-darwin
 # USER envoy
 # COPY --chown=envoy:envoy --from=crazymax/osxcross:latest /osxcross /osxcross
@@ -70,23 +92,22 @@ COPY --chown=envoy:envoy --from=envoy-deps /tmp/envoy/bazel/output /tmp/envoy/ba
 
 ####################################################################################
 
-# TARGETOS = linux / windows / darwin
+# ENVOY_TARGET_ARTIFACT_OS = linux / windows / darwin
 # TARGETPLATFORM = linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64
-# bazel distro specific build flags
-# DISTRO= alpine / centos for linux os, darwin for darwin os
+# bazel ENVOY_TARGET_ARTIFACT_DISTRO specific build flags
+# ENVOY_TARGET_ARTIFACT_DISTRO= alpine / centos for linux os, darwin for darwin os
 
-FROM envoy-build-$TARGETOS as envoy-build
+FROM envoy-build-$ENVOY_TARGET_ARTIFACT_OS as envoy-build
 ARG TARGETPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
-ARG DISTRO
+ARG ENVOY_TARGET_ARTIFACT_OS
+ARG ENVOY_TARGET_ARTIFACT_ARCH
+ARG ENVOY_TARGET_ARTIFACT_DISTRO
 ARG ENVOY_TAG
 ARG BAZEL_BUILD_EXTRA_OPTIONS
 ARG BAZEL_COMPILATION_MODE
-ENV DISTRO=$DISTRO
+ARG BAZEL_DEPS_BASE_DIR
+ENV BAZEL_DEPS_BASE_DIR=$BAZEL_DEPS_BASE_DIR
+ENV ENVOY_TARGET_ARTIFACT_DISTRO=$ENVOY_TARGET_ARTIFACT_DISTRO
 ENV ENVOY_TAG=$ENVOY_TAG
-ENV ENVOY_BAZEL_OUTPUT_BASE_DIR=/tmp/envoy/bazel/output
 ENV BAZEL_COMPILATION_MODE=$BAZEL_COMPILATION_MODE
-ENV BAZEL_BUILD_EXTRA_OPTIONS="$BAZEL_BUILD_EXTRA_OPTIONS --distdir ${ENVOY_BAZEL_OUTPUT_BASE_DIR}"
-RUN bash -c "$ENVOY_SOURCE_DIR/bazel/setup_clang.sh /opt/llvm"
-RUN "$ENVOY_BUILD_TOOLS_DIR/scripts/bazel/$DISTRO.sh"
+RUN "$ENVOY_BUILDS_SCRIPT_DIR/scripts/bazel/$ENVOY_TARGET_ARTIFACT_DISTRO.sh"

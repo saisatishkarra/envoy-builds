@@ -11,8 +11,6 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-source "$(dirname -- "${BASH_SOURCE[0]}")/common.sh"
-
 function download_envoy() {
     local binary_name=$1
     echo "Downloading ${binary_name}"
@@ -34,7 +32,7 @@ function download_envoy() {
 }
 
 if [[ -n "${ENVOY_VERSION_TRIMMED}" ]]; then
-  BINARY_NAME="envoy-${ENVOY_VERSION_TRIMMED}-${DISTRO}-${GOARCH}"
+  BINARY_NAME="envoy-${ENVOY_VERSION_TRIMMED}-${ENVOY_TARGET_ARTIFACT_DISTRO}-${ENVOY_TARGET_ARTIFACT_ARCH}"
   download_envoy "${BINARY_NAME}"
   exit 0
 fi

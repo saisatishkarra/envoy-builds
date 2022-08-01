@@ -7,7 +7,7 @@ set -o nounset
 source ${ENVOY_BUILD_TOOLS_DIR}/scripts/bazel/init.sh
 
 BAZEL_STARTUP_OPTIONS=(
-  "--output_base=${ENVOY_BAZEL_OUTPUT_BASE_DIR}"
+  "--output_base=${BAZEL_DEPS_BASE_DIR}"
 )
 
 # Append ${BAZEL_BUILD_OPTIONS[@]} change command to "sync" for all deps
@@ -22,4 +22,4 @@ eval $BUILD_CMD
 popd
 
 echo "Envoy fetched external dependencies: "
-echo "Bazel output: ${ENVOY_BAZEL_OUTPUT_BASE_DIR}"
+echo "Bazel Dependencies output: ${BAZEL_DEPS_BASE_DIR}"

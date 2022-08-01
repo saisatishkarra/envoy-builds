@@ -120,21 +120,8 @@ build/envoy:
 ${ENVOY_BUILDS_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN}-${ENVOY_BUILDS_OUT_METADATA}:
 	cp ${ENVOY_SOURCE_DIR}/bazel-bin/contrib/exe/envoy-static $@
 
-.PHONY: clean/envoy
-clean/envoy:
-	ENVOY_BUILDS_OUT_DIR=${ENVOY_BUILDS_OUT_DIR} \
-	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
-	rm -rf ${ENVOY_BUILDS_OUT_DIR}
-	rm -rf ${ENVOY_SOURCE_DIR}
-	docker buildx stop envoy-builder
-	docker buildx rm envoy-builder
-
-.PHONY: setup/buildx
-envoy_buildx_setup:
-	docker run --privileged --rm tonistiigi/binfmt --install all
-	docker buildx create --name envoy-builder --bootstrap --use
-
-# TODO: Use local registry cache instead of remote
+# TODO: Implement local registry cache instead of remote caching locally 
+# Note: Use buildx and build-push action in CI with remote caching enabled
 .PHONY: docker/envoy-build
 docker/envoy-build:
 
@@ -162,6 +149,8 @@ docker/envoy-build:
 	CACHE_TAG=${CACHE_TAG} \
 	ARTIFACT_TAG=${ARTIFACT_TAG} \
 
+	$(MAKE) setup/buildx
+
 	$(MAKE) docker/envoy-deps
 
 	docker buildx build \
@@ -186,10 +175,8 @@ docker/envoy-build:
 
 	$(MAKE) extract/envoy-binary
 
-
 .PHONY: docker/envoy-deps
 docker/envoy-deps: 
-	$(MAKE) setup/buildx
 	docker buildx build \
 		-f $(DOCKERFILE) \
 		--load \
@@ -208,12 +195,18 @@ docker/envoy-deps:
 		--target=envoy-deps\
 		-t ${CACHE_IMAGE_NAME}:envoy-deps-${CACHE_TAG} .
 
+.PHONY: setup/buildx
+envoy_buildx_setup:
+	docker run --privileged --rm tonistiigi/binfmt --install all
+	docker buildx create --name envoy-builder --bootstrap --use
+
 .PHONY: inspect/envoy-image
 inspect/envoy-image:
-	docker image inspect ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}
+	docker image inspect ${ARTIFACT_IMAGE_NAME}:envoy-build-${ARTIFACT_TAG}
 	
 .PHONY: extract/envoy-binary
 extract/envoy-binary:
+
 	ENVOY_BUILDS_OUT_DIR=${ENVOY_BUILDS_OUT_DIR} \
 	ENVOY_BUILDS_OUT_BIN=${ENVOY_BUILDS_OUT_BIN} \
 	ENVOY_BUILDS_OUT_METADATA=${ENVOY_BUILDS_OUT_METADATA} \
@@ -221,5 +214,11 @@ extract/envoy-binary:
 	id=$$(docker create ${ARTIFACT_IMAGE_NAME}:envoy-build-${TAG_METADATA}) \
 	docker cp ${id}:${ENVOY_SOURCE_DIR}/bazel-bin/contrib/exe/envoy-static ${ENVOY_OUT_DIR}/${ENVOY_BUILDS_OUT_BIN}-${ENVOY_BUILDS_OUT_METADATA}
 
-
-
+.PHONY: clean/envoy
+clean/envoy:
+	ENVOY_BUILDS_OUT_DIR=${ENVOY_BUILDS_OUT_DIR} \
+	ENVOY_SOURCE_DIR=${ENVOY_SOURCE_DIR} \
+	rm -rf ${ENVOY_BUILDS_OUT_DIR}
+	rm -rf ${ENVOY_SOURCE_DIR}
+	docker buildx stop envoy-builder
+	docker buildx rm envoy-builder

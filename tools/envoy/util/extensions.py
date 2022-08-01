@@ -19,7 +19,7 @@ enable_contrib_extensions = [
 
 # By default all source extensions are enabled. Use blacklisting to disable
 disable_source_extensions = [
-    "envoy.filters.http.file_system_buffer"
+    "envoy.filters.http.file_system_buffer",
     "envoy.transport_sockets.tcp_stats"
     
 ]
@@ -36,7 +36,7 @@ for k, v in CONTRIB_EXTENSIONS.items():
 for k, v in EXTENSIONS.items():
     desired.append('--{target}:enabled={isEnabled}'.format(
         target=v.split(":")[0],
-        isEnabled=(k not in disable_source_extensions))
+        isEnabled=(not k in disable_source_extensions))
     )
 
 print(' '.join(desired))
